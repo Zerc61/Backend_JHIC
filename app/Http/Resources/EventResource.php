@@ -17,12 +17,22 @@ class EventResource extends JsonResource
             'start_date' => $this->start_date->toIso8601String(),
             'end_date' => $this->end_date->toIso8601String(),
             'location' => $this->location,
-            'image' => $this->image ? url("storage/{$this->image}") : null,
+            'image' => $this->image,
             'status' => $this->status->value,
-            'destination' => $this->whenLoaded('destination', fn() => [
-                'id' => $this->destination->id,
-                'name' => $this->destination->name,
-            ]),
+            'status_label' => $this->status->label(),
+            'status_color' => $this->status->color(),
+            
+            // Relasi (hanya tampil jika di-load)
+            'destination' => $this->whenLoaded('destination', function () {
+                return [
+                    'id' => $this->destination->id,
+                    'name' => $this->destination->name,
+                    'slug' => $this->destination->slug,
+                ];
+            }),
+            'galleries' => EventGalleryResource::collection($this->whenLoaded('galleries')),
+            
+            'created_at' => $this->created_at->toIso8601String(),
         ];
     }
 }

@@ -20,21 +20,25 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 class OrderController extends Controller
 {
     public function index(Request $request): JsonResponse
-    {
-        $orders = Order::with(['items', 'umkm'])
-            ->where('user_id', $request->user()->id)
-            ->latest()
-            ->paginate($request->per_page ?? 10);
+{
+    $orders = Order::with(['items', 'umkm'])
+        ->where('user_id', $request->user()->id)
+        ->when($request->status, function ($query, $status) {
+            $statuses = explode(',', $status);
+            $query->whereIn('status', $statuses);
+        })
+        ->latest()
+        ->paginate($request->per_page ?? 10);
 
-        return response()->json([
-            'data' => OrderResource::collection($orders->items()),
-            'meta' => [
-                'current_page' => $orders->currentPage(),
-                'last_page' => $orders->lastPage(),
-                'total' => $orders->total(),
-            ],
-        ]);
-    }
+    return response()->json([
+        'data' => OrderResource::collection($orders->items()),
+        'meta' => [
+            'current_page' => $orders->currentPage(),
+            'last_page' => $orders->lastPage(),
+            'total' => $orders->total(),
+        ],
+    ]);
+}
 
     public function show(Request $request, Order $order): JsonResponse
     {
@@ -64,17 +68,17 @@ class OrderController extends Controller
 
             // 1. Validasi Produk & Hitung Total
             foreach ($request->items as $item) {
-                $product = Product::where('id', $item['product_id'])
-                    ->where('status', ProductStatus::AVAILABLE)
-                    ->lockForUpdate()
-                    ->first();
+    $product = Product::where('id', $item['product_id'])
+        ->where('status', ProductStatus::AVAILABLE)
+        ->lockForUpdate()
+        ->first();
 
-                if (!$product) {
-                    throw new \Exception("Produk dengan ID {$item['product_id']} tidak tersedia.");
-                }
-                if ($product->stock < $item['quantity']) {
-                    throw new \Exception("Stok {$product->name} tidak mencukupi. Sisa: {$product->stock}");
-                }
+    if (!$product) {
+        abort(400, "Produk dengan ID {$item['product_id']} tidak tersedia.");
+    }
+    if ($product->stock < $item['quantity']) {
+        abort(400, "Stok {$product->name} tidak mencukupi. Sisa: {$product->stock}");
+    }
 
                 $subtotal = $product->price * $item['quantity'];
                 $totalPrice += $subtotal;
@@ -94,15 +98,15 @@ class OrderController extends Controller
             $rupiahEquivalent = 0;
 
             if ($paymentMethod === PaymentMethod::COIN) {
-                if (!$wallet) {
-                    throw new \Exception("Wallet tidak ditemukan. Silakan hubungi admin.");
-                }
+    if (!$wallet) {
+        abort(400, "Wallet tidak ditemukan. Silakan hubungi admin.");
+    }
 
-                $coinAmount = ceil($totalPrice / $coinToRupiahRate * 10000) / 10000; // Bulatkan ke atas 4 desimal
-                
-                if (!$wallet->hasSufficientBalance($coinAmount)) {
-                    throw new \Exception("Saldo coin tidak mencukupi. Dibutuhkan: {$coinAmount} Coin.");
-                }
+    $coinAmount = ceil($totalPrice / $coinToRupiahRate * 10000) / 10000;
+    
+    if (!$wallet->hasSufficientBalance($coinAmount)) {
+        abort(400, "Saldo coin tidak mencukupi. Dibutuhkan: {$coinAmount} Coin.");
+    }
 
                 // Potong saldo
                 $wallet->debit($coinAmount, "Pembayaran Order Pickup", $order ?? null); 
@@ -154,4 +158,44 @@ class OrderController extends Controller
             ], 201);
         });
     }
+
+    public function cancel(Request $request, Order $order): JsonResponse
+{
+    // Validasi kepemilikan
+    if ($request->user()->id !== $order->user_id) {
+        abort(403, 'Kamu tidak memiliki akses ke pesanan ini.');
+    }
+
+    // Validasi status: hanya pending & paid yang bisa dibatalkan
+    if (!in_array($order->status->value, [OrderStatus::PENDING->value, OrderStatus::PAID->value])) {
+        abort(400, 'Pesanan tidak dapat dibatalkan karena sudah diproses.');
+    }
+
+    return DB::transaction(function () use ($order, $request) {
+        $oldStatus = $order->status;
+
+        // Update status
+        $order->update([
+            'status' => OrderStatus::CANCELLED,
+        ]);
+
+        // Jika bayar pakai coin, kembalikan saldo
+        if ($oldStatus === OrderStatus::PAID && $order->coin_amount > 0) {
+            $wallet = $order->user->wallet;
+            if ($wallet) {
+                $wallet->credit($order->coin_amount, "Pengembalian coin - Pesanan {$order->order_number} dibatalkan", $order);
+            }
+        }
+
+        // (Opsional) Kembalikan stok produk
+        foreach ($order->items as $item) {
+            Product::where('id', $item->product_id)->increment('stock', $item->quantity);
+        }
+
+        return response()->json([
+            'message' => 'Pesanan berhasil dibatalkan.',
+            'data' => new OrderResource($order->load('items', 'umkm')),
+        ]);
+    });
+}
 }

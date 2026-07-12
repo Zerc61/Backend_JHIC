@@ -11,13 +11,10 @@ use Illuminate\Http\Request;
 
 class TripPlanController extends Controller
 {
-    // ========================================================
-    // KONSTANTA ESTIMASI BIAYA (bisa dipindah ke config nanti)
-    // ========================================================
-    private const ESTIMATED_WISATA_PER_DEST = 25000;   // Rp 25.000 per destinasi
-    private const ESTIMATED_MAKAN_PER_DAY  = 75000;   // Rp 75.000 per orang per hari
-    private const ESTIMATED_TRANSPORT_PER_DAY = 50000; // Rp 50.000 per orang per hari
-    private const ESTIMATED_HOTEL_PER_NIGHT = 150000;  // Rp 150.000 per orang per malam
+    private const ESTIMATED_WISATA_PER_DEST = 25000;
+    private const ESTIMATED_MAKAN_PER_DAY  = 75000;
+    private const ESTIMATED_TRANSPORT_PER_DAY = 50000;
+    private const ESTIMATED_HOTEL_PER_NIGHT = 150000;
 
     public function index(Request $request): JsonResponse
     {
@@ -29,14 +26,6 @@ class TripPlanController extends Controller
         return response()->json(['data' => TripPlanResource::collection($plans)]);
     }
 
-    /**
-     * SMART TRIP PLANNER - Buat rencana perjalanan
-     * 
-     * Logika "smart":
-     * - Auto-hitung estimasi biaya (wisata + makan + transport + hotel)
-     * - Generate itinerary JSON terstruktur per hari
-     * - Jika destinasi punya field estimated_cost, pakai itu
-     */
     public function store(Request $request): JsonResponse
     {
         $request->validate([
@@ -56,23 +45,18 @@ class TripPlanController extends Controller
         $people   = $request->total_people;
         $budget   = $request->budget ?? 0;
 
-        // ========================================================
         // 1. Ambil semua destinasi yang dipilih + hitung biaya wisata
-        // ========================================================
         $destinationIds = collect($request->destinations)->pluck('id');
-        $destinations   = Destination::whereIn('id', $destinationIds)->get()->keyBy('id');
+        $destinations   = Destination::with('galleries')->whereIn('id', $destinationIds)->get()->keyBy('id');
 
         $wisataCost = 0;
         foreach ($destinationIds as $id) {
-            // Prioritas: field estimated_cost di DB, fallback ke konstanta
             $destCost = $destinations[$id]->estimated_cost ?? self::ESTIMATED_WISATA_PER_DEST;
             $wisataCost += $destCost;
         }
         $wisataCostTotal = $wisataCost * $people;
 
-        // ========================================================
         // 2. Hitung biaya tambahan (makan, transport, hotel)
-        // ========================================================
         $makanCost     = self::ESTIMATED_MAKAN_PER_DAY * $duration * $people;
         $transportCost = self::ESTIMATED_TRANSPORT_PER_DAY * $duration * $people;
         $hotelNights   = max($duration - 1, 0);
@@ -80,9 +64,7 @@ class TripPlanController extends Controller
 
         $totalEstimated = $wisataCostTotal + $makanCost + $transportCost + $hotelCost;
 
-        // ========================================================
         // 3. Build itinerary JSON (terstruktur per hari)
-        // ========================================================
         $itinerary = [];
         foreach ($request->destinations as $dest) {
             $d = $destinations[$dest['id']];
@@ -96,7 +78,7 @@ class TripPlanController extends Controller
                 'destination_id'   => $d->id,
                 'destination_name' => $d->name,
                 'destination_slug' => $d->slug ?? null,
-                'destination_image'=> $d->image ?? null,
+                'destination_image'=> $d->galleries->first()?->image ?? null,
                 'sort_order'       => $dest['sort_order'] ?? 0,
                 'notes'            => $dest['notes'] ?? null,
                 'estimated_cost'   => $d->estimated_cost ?? self::ESTIMATED_WISATA_PER_DEST,
@@ -109,9 +91,7 @@ class TripPlanController extends Controller
         }
         unset($items);
 
-        // ========================================================
         // 4. Buat TripPlan
-        // ========================================================
         $tripPlan = TripPlan::create([
             'user_id'        => $user->id,
             'title'          => $request->title,
@@ -122,9 +102,7 @@ class TripPlanController extends Controller
             'itinerary'      => $itinerary,
         ]);
 
-        // ========================================================
         // 5. Attach destinasi ke pivot table
-        // ========================================================
         $syncData = [];
         foreach ($request->destinations as $dest) {
             $syncData[$dest['id']] = [
@@ -135,9 +113,7 @@ class TripPlanController extends Controller
         }
         $tripPlan->destinations()->attach($syncData);
 
-        // ========================================================
         // 6. Return response
-        // ========================================================
         $tripPlan->load('destinations');
 
         return response()->json([
@@ -146,57 +122,61 @@ class TripPlanController extends Controller
         ], 201);
     }
 
-    public function show(TripPlan $tripPlan): JsonResponse
+    public function show(Request $request, TripPlan $tripPlan): JsonResponse
     {
-        $this->authorize('view', $tripPlan);
+        // Manual check (amankan dari error Policy)
+        if ($request->user()->id !== $tripPlan->user_id) {
+            abort(403, 'Kamu tidak memiliki akses ke rencana ini.');
+        }
+        
         $tripPlan->load('destinations');
 
         return response()->json(['data' => new TripPlanResource($tripPlan)]);
     }
 
-    public function destroy(TripPlan $tripPlan): JsonResponse
+    public function destroy(Request $request, TripPlan $tripPlan): JsonResponse
     {
-        $this->authorize('delete', $tripPlan);
+        // Manual check: Hanya pemilik trip yang bisa menghapus
+        if ($request->user()->id !== $tripPlan->user_id) {
+            abort(403, 'Kamu tidak memiliki akses untuk menghapus rencana ini.');
+        }
+
         $tripPlan->delete();
 
-        return response()->json(['message' => 'Rencana perjalanan dihapus']);
+        return response()->json([
+            'message' => 'Rencana perjalanan berhasil dihapus permanen.'
+        ]);
     }
 
-    /**
-     * Endpoint tambahan: Ambil destinasi yang tersedia untuk planner
-     * (ringan, hanya field yang dibutuhkan)
-     */
-   /**
- * Endpoint tambahan: Ambil destinasi yang tersedia untuk planner
- */
-public function availableDestinations(Request $request): JsonResponse
-{
-    $query = Destination::with('category')
-        ->where('status', \App\Enums\DestinationStatus::PUBLISHED);
+    public function availableDestinations(Request $request): JsonResponse
+    {
+        $query = Destination::with(['category', 'galleries'])
+            ->where('status', \App\Enums\DestinationStatus::PUBLISHED);
 
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('address', 'like', "%{$search}%");
-        });
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
+        $destinations = $query->orderBy('name')
+            ->limit(30)
+            ->get()
+            ->map(function ($dest) {
+                return [
+                    'id'             => $dest->id,
+                    'name'           => $dest->name,
+                    'slug'           => $dest->slug,
+                    'address'        => $dest->address,
+                    'category'       => $dest->category?->name ?? 'Wisata',
+                    'image'          => $dest->galleries->first()?->image,
+                    'ticket_price'   => (float) $dest->ticket_price,
+                    'estimated_cost' => (float) ($dest->estimated_cost ?? 0),
+                ];
+            });
+
+        return response()->json(['data' => $destinations]);
     }
-
-    $destinations = $query->select('id', 'name', 'slug', 'address', 'ticket_price')
-        ->orderBy('name')
-        ->limit(30)
-        ->get()
-        ->map(function ($dest) {
-            return [
-                'id'           => $dest->id,
-                'name'         => $dest->name,
-                'slug'         => $dest->slug,
-                'address'      => $dest->address,
-                'main_image'   => $dest->main_image ? url("storage/{$dest->main_image}") : null,
-                'ticket_price' => (float) $dest->ticket_price,
-            ];
-        });
-
-    return response()->json(['data' => $destinations]);
-}
 }

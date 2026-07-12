@@ -11,22 +11,20 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-        ->withMiddleware(function (Middleware $middleware) {
+    ->withMiddleware(function (Middleware $middleware) {
         $middleware->statefulApi();
 
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \Illuminate\Session\Middleware\StartSession::class, // Tambahkan ini agar session aktif di API
         ]);
 
-        
-
-        // YANG INI DIPERBAIKI:
+        // HANYA webhook yang dikecualikan dari CSRF
         $middleware->validateCsrfTokens(except: [
-            'api/*', 
-            'midtrans/notification', 
+            'midtrans/notification',
         ]);
     })
-        ->withExceptions(function (Exceptions $exceptions) {
+    ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([

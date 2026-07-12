@@ -9,6 +9,13 @@ class DestinationDetailResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Helper untuk handle URL
+        $formatImage = function ($image) {
+            if (!$image) return null;
+            if (str_starts_with($image, 'http')) return $image;
+            return url("storage/{$image}");
+        };
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -18,7 +25,7 @@ class DestinationDetailResource extends JsonResource
             'latitude' => (float) $this->latitude,
             'longitude' => (float) $this->longitude,
             'open_hour' => $this->open_hour,
-'close_hour' => $this->close_hour,
+            'close_hour' => $this->close_hour,
             'ticket_price' => (float) $this->ticket_price,
             'ticket_price_formatted' => \App\Helpers\GeneralHelper::formatRupiah((float) $this->ticket_price),
             'phone' => $this->phone,
@@ -32,7 +39,7 @@ class DestinationDetailResource extends JsonResource
             ],
             'galleries' => $this->whenLoaded('galleries', fn() => $this->galleries->map(fn($g) => [
                 'id' => $g->id,
-                'image' => url("storage/{$g->image}"),
+                'image' => $formatImage($g->image),
                 'caption' => $g->caption,
             ])->sortBy('sort_order')->values()),
             'facilities' => $this->whenLoaded('facilities', fn() => $this->facilities->map(fn($f) => [

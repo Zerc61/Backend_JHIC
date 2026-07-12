@@ -48,26 +48,35 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(Request $request): JsonResponse
-    {
-        $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-        ]);
+   public function login(Request $request): JsonResponse
+{
+    $request->validate([
+        'email' => 'required|string|email',
+        'password' => 'required|string',
+    ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['Kredensial yang diberikan tidak cocok.'],
-            ]);
-        }
-
-        $request->session()->regenerate();
-
-        return response()->json([
-            'message' => 'Login berhasil',
-            'user' => new UserResource(Auth::user()),
+    if (!Auth::attempt($request->only('email', 'password'))) {
+        throw ValidationException::withMessages([
+            'email' => ['Kredensial yang diberikan tidak cocok.'],
         ]);
     }
+
+    // 1. Ambil data user yang berhasil login
+    $user = Auth::user();
+
+    // 2. Buat token baru menggunakan Sanctum
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    // Catatan: Hapus atau beri komentar pada baris session jika murni pakai token
+    // $request->session()->regenerate();
+
+    return response()->json([
+        'message' => 'Login berhasil',
+        'token' => $token, // Token ini yang akan disalin ke Postman
+        'user' => new UserResource($user),
+    ]);
+}
+
 
     public function logout(Request $request): JsonResponse
     {
@@ -90,22 +99,33 @@ class AuthController extends Controller
     ]);
 }
 
-    public function updateProfile(Request $request): JsonResponse
-    {
-        $user = $request->user();
+   public function updateProfile(Request $request): JsonResponse
+{
+    $user = $request->user();
 
-        $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'phone' => 'sometimes|nullable|string|max:20',
-        ]);
+    $request->validate([
+        'name' => 'sometimes|required|string|max:255',
+        'phone' => 'sometimes|nullable|string|max:20',
+        'avatar' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
+    ]);
 
-        $user->update($request->only('name', 'phone'));
+    $user->fill($request->only('name', 'phone'));
 
-        return response()->json([
-            'message' => 'Profil berhasil diperbarui',
-            'user' => new UserResource($user->fresh()),
-        ]);
+    if ($request->hasFile('avatar')) {
+        if ($user->avatar && \Storage::disk('public')->exists($user->avatar)) {
+            \Storage::disk('public')->delete($user->avatar);
+        }
+
+        $user->avatar = $request->file('avatar')->store('avatars', 'public');
     }
+
+    $user->save();
+
+    return response()->json([
+        'message' => 'Profil berhasil diperbarui',
+        'user' => new UserResource($user->fresh()->load('wallet')),
+    ]);
+}
 
     
 }

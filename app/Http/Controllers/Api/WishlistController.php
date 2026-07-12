@@ -42,12 +42,14 @@ class WishlistController extends Controller
         return response()->json(['message' => 'Dihapus dari wishlist']);
     }
 
-    public function check(Destination $destination, Request $request): JsonResponse
-    {
-        $exists = Wishlist::where('user_id', $request->user()->id)
-            ->where('destination_id', $destination->id)
-            ->exists();
+    public function check(Destination $destination): JsonResponse
+{
+    $wishlist = Wishlist::where('user_id', auth()->id())
+        ->where('destination_id', $destination->id)
+        ->first();
 
-        return response()->json(['is_wishlisted' => $exists]);
-    }
+    return response()->json([
+        'is_wishlisted' => $wishlist !== null,
+    ]);
+}
 }

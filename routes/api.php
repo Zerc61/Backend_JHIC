@@ -12,13 +12,12 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\TripPlanController;
 use App\Http\Controllers\Api\Dashboard\DashboardUmkmController;
 use App\Http\Controllers\Api\Dashboard\DashboardAdminController;
+use App\Http\Controllers\Api\HotelController;
+use App\Http\Controllers\Api\TravelPackageController;
+use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\TransportTicketController;
 use Illuminate\Support\Facades\Route;
 
-
-Route::post('/midtrans/notification', [WalletController::class, 'handleMidtransNotification']);
-
-// Simulasi Webhook (TANPA AUTH - untuk testing saja, hapus di production)
-Route::get('/simulasi-webhook-midtrans/{orderId}', [WalletController::class, 'simulateWebhook']);
 
 /*
 |--------------------------------------------------------------------------
@@ -31,29 +30,38 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 
 // Destinations
-// Destinations
+Route::get('/destination-categories', [DestinationController::class, 'categories']);
 Route::get('/destinations', [DestinationController::class, 'index']);
-Route::get('/destination-categories', [DestinationController::class, 'categories']); // <-- DIPINDAH & DIUBAH NAMANYA
 Route::get('/destinations/{slug}', [DestinationController::class, 'show']);
 
-// UMKM by Destination
+// UMKM
 Route::get('/destinations/{destinationSlug}/umkms', [UmkmController::class, 'byDestination']);
-
-// Products by UMKM
-Route::get('/umkms/{umkmSlug}/products', [ProductController::class, 'byUmkm']);
-
-// UMKM Detail
 Route::get('/umkms/{slug}', [UmkmController::class, 'show']);
-
-// Product Detail
+Route::get('/umkms/{umkmSlug}/products', [ProductController::class, 'byUmkm']);
 Route::get('/products/{slug}', [ProductController::class, 'show']);
 
 // Events
 Route::get('/events', [EventController::class, 'index']);
-Route::get('/events/{slug}', [EventController::class, 'show']);
+Route::get('/events/{event:slug}', [EventController::class, 'show']);
 
 // Reviews (publik bisa baca)
 Route::get('/reviews', [ReviewController::class, 'index']);
+
+// ===== FITUR BARU (PUBLIC) =====
+
+// Hotels
+Route::get('/hotels', [HotelController::class, 'index']);
+Route::get('/hotels/{slug}', [HotelController::class, 'show']);
+
+// Transportations
+Route::prefix('transport-tickets')->group(function () {
+    Route::get('/search', [TransportTicketController::class, 'search']);
+    Route::get('/{id}', [TransportTicketController::class, 'show']);
+});
+
+// Travel Packages
+Route::get('/travel-packages', [TravelPackageController::class, 'index']);
+Route::get('/travel-packages/{slug}', [TravelPackageController::class, 'show']);
 
 
 /*
@@ -69,33 +77,44 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
 
-    // Orders
+    // Orders (UMKM)
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
+
+    // ===== BOOKING BARU =====
+    Route::get('/bookings', [BookingController::class, 'index']);
+    Route::post('/bookings', [BookingController::class, 'store']);
+    Route::get('/bookings/{bookingNumber}', [BookingController::class, 'show']);
+    Route::post('/bookings/{bookingNumber}/cancel', [BookingController::class, 'cancel']);
 
     // Wallet & Coin
- Route::get('/wallet', [WalletController::class, 'show']);
+    Route::get('/wallet', [WalletController::class, 'show']);
     Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
-    Route::get('/wallet/top-up/history', [WalletController::class, 'topUpHistory']);
+    Route::get('/wallet/top-up-history', [WalletController::class, 'topUpHistory']);
     Route::post('/wallet/top-up', [WalletController::class, 'requestTopUp']);
-    Route::get('/wallet/top-up/check/{orderId}', [WalletController::class, 'checkTopUpStatus']);
+    Route::get('/wallet/check-status/{orderId}', [WalletController::class, 'checkTopUpStatus']);
+    Route::post('/wallet/simulate-webhook/{orderId}', [WalletController::class, 'simulateWebhook']);
+
+    // Webhook Midtrans
+    Route::post('/midtrans/notification', [WalletController::class, 'handleMidtransNotification']);
 
     // Wishlist
     Route::get('/wishlists', [WishlistController::class, 'index']);
     Route::post('/wishlists', [WishlistController::class, 'store']);
-    Route::delete('/wishlists/{destination}', [WishlistController::class, 'destroy']);
+    Route::delete('/wishlists/{wishlist}', [WishlistController::class, 'destroy']);
     Route::get('/wishlists/check/{destination}', [WishlistController::class, 'check']);
 
-    // Reviews (tulis butuh auth)
+    // Reviews
     Route::post('/reviews', [ReviewController::class, 'store']);
 
-// Trip Plans
-Route::get('/trip-plans', [TripPlanController::class, 'index']);
-Route::get('/trip-plans/destinations', [TripPlanController::class, 'availableDestinations']);
-Route::post('/trip-plans', [TripPlanController::class, 'store']);
-Route::get('/trip-plans/{tripPlan}', [TripPlanController::class, 'show']);
-Route::delete('/trip-plans/{tripPlan}', [TripPlanController::class, 'destroy']);
+    // Trip Plans
+    Route::get('/trip-plans', [TripPlanController::class, 'index']);
+    Route::get('/trip-plans/destinations', [TripPlanController::class, 'availableDestinations']);
+    Route::post('/trip-plans', [TripPlanController::class, 'store']);
+    Route::get('/trip-plans/{tripPlan}', [TripPlanController::class, 'show']);
+    Route::delete('/trip-plans/{tripPlan}', [TripPlanController::class, 'destroy']);
 
     // Dashboard UMKM
     Route::prefix('dashboard/umkm')->group(function () {
