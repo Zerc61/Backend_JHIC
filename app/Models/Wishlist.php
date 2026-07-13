@@ -19,9 +19,4 @@ class Wishlist extends Model
     {
         return $this->morphTo();
     }
-
-      public function destination()
-    {
-        return $this->belongsTo(Destination::class);
-    }
 }

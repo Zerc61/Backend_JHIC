@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Route;
 // Auth
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::get('/dashboard', [App\Http\Controllers\Api\Dashboard\DashboardUserController::class, 'index']);
 
 // Destinations
 Route::get('/destination-categories', [DestinationController::class, 'categories']);
@@ -58,10 +59,13 @@ Route::prefix('transport-tickets')->group(function () {
     Route::get('/search', [TransportTicketController::class, 'search']);
     Route::get('/{id}', [TransportTicketController::class, 'show']);
 });
+Route::get('/transport-tickets', [TransportTicketController::class, 'index']);
+Route::get('/transport-tickets/stats', [TransportTicketController::class, 'stats']);
 
 // Travel Packages
 Route::get('/travel-packages', [TravelPackageController::class, 'index']);
 Route::get('/travel-packages/{slug}', [TravelPackageController::class, 'show']);
+
 
 
 /*
@@ -101,10 +105,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/midtrans/notification', [WalletController::class, 'handleMidtransNotification']);
 
     // Wishlist
-    Route::get('/wishlists', [WishlistController::class, 'index']);
+   Route::get('/wishlists', [WishlistController::class, 'index']);
     Route::post('/wishlists', [WishlistController::class, 'store']);
-    Route::delete('/wishlists/{wishlist}', [WishlistController::class, 'destroy']);
-    Route::get('/wishlists/check/{destination}', [WishlistController::class, 'check']);
+    Route::get('/wishlists/check/{destinationId}', [WishlistController::class, 'check']);
+    Route::delete('/wishlists/{destinationId}', [WishlistController::class, 'destroy']);
 
     // Reviews
     Route::post('/reviews', [ReviewController::class, 'store']);

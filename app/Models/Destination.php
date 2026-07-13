@@ -83,13 +83,25 @@ class Destination extends Model
             ->withPivot('day_number', 'sort_order', 'notes');
     }
 
-    public function getMainImageAttribute(): ?string
-    {
-        return $this->galleries()->orderBy('sort_order')->first()?->image;
+   public function getMainImageAttribute(): ?string
+{
+    if ($this->relationLoaded('galleries') && $this->galleries->isNotEmpty()) {
+        return $this->galleries->first()->image;
     }
+    return null;
+}
 
     public function getAverageRatingAttribute(): float
-    {
-        return $this->reviews()->avg('rating') ?? 0;
+{
+    if ($this->relationLoaded('reviews')) {
+        return $this->reviews->avg('rating') ?? 0;
     }
+    
+    // Fallback: hitung dari DB kalau reviews belum di-load
+    return $this->reviews()->avg('rating') ?? 0;
+}
+
+
+
+    
 }
