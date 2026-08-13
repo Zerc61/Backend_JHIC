@@ -9,17 +9,23 @@ class DestinationDetailResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // Helper untuk handle URL
         $formatImage = function ($image) {
             if (!$image) return null;
             if (str_starts_with($image, 'http')) return $image;
             return url("storage/{$image}");
         };
 
+        // ✅ BARU — ambil main image dari galeri pertama
+        $mainImage = null;
+        if ($this->relationLoaded('galleries') && $this->galleries->isNotEmpty()) {
+            $mainImage = $formatImage($this->galleries->first()->image);
+        }
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
+            'main_image' => $mainImage, // ✅ BARU
             'description' => $this->description,
             'address' => $this->address,
             'latitude' => (float) $this->latitude,

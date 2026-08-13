@@ -20,8 +20,8 @@ class ProductResource extends JsonResource
             'unit' => $this->unit,
             'image' => $this->image ? url("storage/{$this->image}") : null,
             'is_available' => $this->isAvailable(),
-            'average_rating' => round($this->average_rating, 1),
-            'status' => $this->status->value,
+            'average_rating' => round($this->average_rating ?? 0, 1),
+            'status' => is_object($this->status) ? $this->status->value : (string) $this->status,
         ];
     }
 }

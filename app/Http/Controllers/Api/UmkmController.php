@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UmkmResource;
 use App\Models\Umkm;
+use App\Models\UmkmCategory;
 use App\Enums\UmkmStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class UmkmController extends Controller
 {
+    public function categories(): JsonResponse
+    {
+        return response()->json(['data' => UmkmCategory::orderBy('name')->get()]);
+    }
+
     public function byDestination(string $destinationSlug, Request $request): JsonResponse
     {
         $umkms = Umkm::with(['category', 'destination'])

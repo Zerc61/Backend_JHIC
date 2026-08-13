@@ -21,7 +21,11 @@ class TravelPackageSchedule extends Model
         'current_booked',
         'status',
         'notes',
-        // pickup_location, pickup_time, vehicle_info, driver_name, driver_phone ← DIHAPUS
+        'pickup_location',
+        'pickup_time',
+        'vehicle_info',
+        'driver_name',
+        'driver_phone',
     ];
 
     protected $casts = [

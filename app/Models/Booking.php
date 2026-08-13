@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\DestinationTicketBooking;
 
 class Booking extends Model
 {
@@ -84,16 +85,6 @@ class Booking extends Model
 
     // ── Accessor ────────────────────────────────────
 
-    public function getDetailAttribute()
-    {
-        return match ($this->booking_type) {
-            'hotel'           => $this->hotelBooking,
-            'transportation'  => $this->transportationBooking,
-            'transport_ticket' => $this->ticketBookings->first()?->transportTicket,
-            'travel_package'  => $this->packageBooking,
-            default           => null,
-        };
-    }
 
     // ── Helper ──────────────────────────────────────
 
@@ -104,5 +95,28 @@ class Booking extends Model
         $random = strtoupper(\Illuminate\Support\Str::random(5));
 
         return "{$prefix}-{$date}-{$random}";
+    }
+// ── Tambahkan relation ini ──
+public function destinationTicketBooking(): HasOne
+{
+    return $this->hasOne(DestinationTicketBooking::class);
+}
+
+// ── Update method getDetailAttribute() ──
+public function getDetailAttribute()
+{
+    return match ($this->booking_type) {
+        'hotel'              => $this->hotelBooking,
+        'transportation'     => $this->transportationBooking,
+        'transport_ticket'   => $this->ticketBookings->first()?->transportTicket,
+        'travel_package'     => $this->packageBooking,
+        'destination_ticket' => $this->destinationTicketBooking,  // <-- BARU
+        default              => null,
+    };
+}
+
+public function getRouteKeyName(): string
+    {
+        return 'booking_number';
     }
 }

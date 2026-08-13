@@ -12,14 +12,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Stateful API (Sanctum session + token) — cukup ini saja
         $middleware->statefulApi();
 
-        $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            \Illuminate\Session\Middleware\StartSession::class, // Tambahkan ini agar session aktif di API
+        // Alias middleware
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'manager' => \App\Http\Middleware\ManagerMiddleware::class,
+            'umkm' => \App\Http\Middleware\UmkmMiddleware::class,
         ]);
 
-        // HANYA webhook yang dikecualikan dari CSRF
+        // Hanya webhook yang dikecualikan dari CSRF
         $middleware->validateCsrfTokens(except: [
             'midtrans/notification',
         ]);

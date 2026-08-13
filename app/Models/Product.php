@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\ProductStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -11,25 +10,59 @@ class Product extends Model
     use HasFactory;
 
     protected $fillable = [
-        'umkm_id',
-        'name',
-        'slug',
-        'description',
-        'price',
-        'stock',
-        'unit',
-        'image',
-        'status',
+        'umkm_id', 'name', 'slug', 'description', 'price', 'stock',
+        'unit', 'image', 'status', 'admin_note',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'price' => 'decimal:2',
+    ];
+
+    // ── Status Helpers ──────────────────────────────────
+
+    public function isPending(): bool
     {
-        return [
-            'price' => 'decimal:2',
-            'stock' => 'integer',
-            'status' => ProductStatus::class,
-        ];
+        return $this->status === 'pending';
     }
+
+    public function isApproved(): bool
+    {
+        return $this->status === 'approved';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
+    }
+
+    public function isAvailable(): bool
+    {
+        return $this->status === 'available';
+    }
+
+    // ── Scopes ─────────────────────────────────────────
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    public function scopeRejected($query)
+    {
+        return $query->where('status', 'rejected');
+    }
+
+    public function scopeVisibleToTourist($query)
+    {
+        return $query->where('status', 'available');
+    }
+
+    // ── Relationships ───────────────────────────────────
 
     public function umkm()
     {
@@ -53,11 +86,13 @@ class Product extends Model
 
     public function getAverageRatingAttribute(): float
     {
-        return $this->reviews()->avg('rating') ?? 0;
+        return (float) $this->reviews()->avg('rating');
     }
 
-    public function isAvailable(): bool
+    public static function generateUniqueSlug(string $name): string
     {
-        return $this->status === ProductStatus::AVAILABLE && $this->stock > 0;
+        $slug = \Illuminate\Support\Str::slug($name);
+        $count = static::where('slug', 'LIKE', "{$slug}%")->count();
+        return $count ? "{$slug}-{$count}" : $slug;
     }
 }

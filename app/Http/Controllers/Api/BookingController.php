@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Api/BookingController.php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -9,6 +7,7 @@ use App\Http\Resources\MyBookingResource;
 use App\Models\Booking;
 use App\Models\CoinTransaction;
 use App\Models\Destination;
+use App\Models\DestinationTicketBooking; // ✅ DESTINATION TICKET
 use App\Models\Hotel;
 use App\Models\HotelBooking;
 use App\Models\HotelRoom;
@@ -22,6 +21,7 @@ use App\Models\Transportation;
 use App\Models\TransportationBooking;
 use App\Models\Wallet;
 use App\Services\TransportTicket\TransportTicketServiceInterface;
+use App\Enums\DestinationStatus; // ✅ DESTINATION TICKET
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -115,11 +115,21 @@ class BookingController extends Controller
                 'contact_phone'     => 'required|string|max:20',
                 'notes'             => 'nullable|string',
             ],
-            default => ['booking_type' => 'required|in:hotel,transportation,transport_ticket,travel_package'],
+            // ✅ DESTINATION TICKET — BARU
+            'destination_ticket' => [
+                'destination_id'     => 'required|exists:destinations,id',
+                'visit_date'         => 'required|date|after_or_equal:today',
+                'number_of_visitors' => 'required|integer|min:1|max:50',
+                'visitor_names'      => 'required|array|min:1|max:50',
+                'visitor_names.*'    => 'required|string|max:255',
+                'contact_person'     => 'required|string|max:255',
+                'contact_phone'      => 'required|string|max:20',
+            ],
+            default => ['booking_type' => 'required|in:hotel,transportation,transport_ticket,travel_package,destination_ticket'],
         };
 
         $request->validate(array_merge([
-            'booking_type' => 'required|in:hotel,transportation,transport_ticket,travel_package',
+            'booking_type' => 'required|in:hotel,transportation,transport_ticket,travel_package,destination_ticket', // ✅ DESTINATION TICKET
             'notes'        => 'nullable|string',
         ], $rules));
 
@@ -192,10 +202,11 @@ class BookingController extends Controller
             ]);
 
             match ($booking->booking_type) {
-                'hotel' => $booking->hotelBooking?->update(['status' => 'cancelled']),
-                'transportation' => $booking->transportationBooking?->update(['status' => 'cancelled']),
-                'transport_ticket' => $booking->ticketBookings->each(fn ($tb) => $tb->update(['status' => 'cancelled'])),
-                'travel_package' => $booking->packageBooking?->update(['status' => 'cancelled']),
+                'hotel'              => $booking->hotelBooking?->update(['status' => 'cancelled']),
+                'transportation'     => $booking->transportationBooking?->update(['status' => 'cancelled']),
+                'transport_ticket'   => $booking->ticketBookings->each(fn ($tb) => $tb->update(['status' => 'cancelled'])),
+                'travel_package'     => $booking->packageBooking?->update(['status' => 'cancelled']),
+                'destination_ticket' => $booking->destinationTicketBooking?->update(['status' => 'cancelled']), // ✅ DESTINATION TICKET
             };
 
             $wallet = $booking->user->wallet;
@@ -246,16 +257,18 @@ class BookingController extends Controller
             'packageBooking.travelPackage',
             'packageBooking.schedule',
             'packageBooking.items',
+            'destinationTicketBooking.destination', // ✅ DESTINATION TICKET
         ];
     }
 
     private function calculatePrice(Request $request): float
     {
         return match ($request->booking_type) {
-            'hotel'           => $this->calculateHotelPrice($request),
-            'transportation'  => $this->calculateTransportPrice($request),
-            'transport_ticket' => $this->calculateTicketPrice($request),
-            'travel_package'  => $this->calculatePackagePrice($request),
+            'hotel'              => $this->calculateHotelPrice($request),
+            'transportation'     => $this->calculateTransportPrice($request),
+            'transport_ticket'   => $this->calculateTicketPrice($request),
+            'travel_package'     => $this->calculatePackagePrice($request),
+            'destination_ticket' => $this->calculateDestinationTicketPrice($request), // ✅ DESTINATION TICKET
         };
     }
 
@@ -312,13 +325,24 @@ class BookingController extends Controller
         return $package->price_per_person * $request->total_travelers;
     }
 
+    // ✅ DESTINATION TICKET — BARU
+    private function calculateDestinationTicketPrice(Request $request): float
+    {
+        $destination = Destination::where('id', $request->destination_id)
+            ->where('status', DestinationStatus::PUBLISHED)
+            ->firstOrFail();
+
+        return (float) $destination->ticket_price * $request->number_of_visitors;
+    }
+
     private function createBookingDetail(Booking $booking, Request $request): void
     {
         match ($booking->booking_type) {
-            'hotel'           => $this->createHotelBooking($booking, $request),
-            'transportation'  => $this->createTransportationBooking($booking, $request),
-            'transport_ticket' => $this->createTicketBooking($booking, $request),
-            'travel_package'  => $this->createPackageBooking($booking, $request),
+            'hotel'              => $this->createHotelBooking($booking, $request),
+            'transportation'     => $this->createTransportationBooking($booking, $request),
+            'transport_ticket'   => $this->createTicketBooking($booking, $request),
+            'travel_package'     => $this->createPackageBooking($booking, $request),
+            'destination_ticket' => $this->createDestinationTicketBooking($booking, $request), // ✅ DESTINATION TICKET
         };
     }
 
@@ -381,14 +405,14 @@ class BookingController extends Controller
         $days = max(1, $days);
 
         TransportationBooking::create([
-            'booking_id'      => $booking->id,
+            'booking_id'       => $booking->id,
             'transportation_id'=> $transport->id,
-            'start_date'      => $request->start_date,
-            'end_date'        => $request->end_date,
-            'number_of_days'  => $days,
-            'pickup_location' => $request->pickup_location,
-            'notes'           => $request->notes,
-            'status'          => 'confirmed',
+            'start_date'       => $request->start_date,
+            'end_date'         => $request->end_date,
+            'number_of_days'   => $days,
+            'pickup_location'  => $request->pickup_location,
+            'notes'            => $request->notes,
+            'status'           => 'confirmed',
         ]);
     }
 
@@ -420,7 +444,7 @@ class BookingController extends Controller
                 'Provider: ' . $ticket->provider,
                 $ticket->transport_mode === 'pesawat' ? 'Flight' : 'Trip',
                 ': ' . ($ticket->flight_number ?? $ticket->provider),
-                'Route: ' . $ticket->origin_code . ' -> ' . $ticket->destination_code,  // ✅ DIUBAH
+                'Route: ' . $ticket->origin_code . ' -> ' . $ticket->destination_code,
                 'Date: ' . $ticket->departure_time->format('Y-m-d'),
                 'Departure: ' . $ticket->departure_time->format('H:i'),
                 'Arrival: ' . $ticket->arrival_time->format('H:i'),
@@ -519,7 +543,7 @@ class BookingController extends Controller
                 'package_booking_id' => $pkgBooking->id,
                 'item_type'          => 'hotel',
                 'title'              => "Hotel: {$hotel->name}",
-                'description'        => "Check-in: " . $schedule->departure_date->format('d M Y') . " - Check-out: " . $schedule->return_date->format('d M Y') . " - {$guests} tamu",  // ✅ DIUBAH
+                'description'        => "Check-in: " . $schedule->departure_date->format('d M Y') . " - Check-out: " . $schedule->return_date->format('d M Y') . " - {$guests} tamu",
                 'qr_code'            => url($qrPath),
                 'qr_data'            => [
                     'type'       => 'hotel_booking',
@@ -555,7 +579,7 @@ class BookingController extends Controller
                 'package_booking_id' => $pkgBooking->id,
                 'item_type'          => 'destination_ticket',
                 'title'              => "Tiket: {$dest->name}",
-                'description'        => "Valid: " . $schedule->departure_date->format('d M Y') . " - {$guests} orang",  // ✅ DIUBAH
+                'description'        => "Valid: " . $schedule->departure_date->format('d M Y') . " - {$guests} orang",
                 'qr_code'            => url($qrPath),
                 'qr_data'            => [
                     'type'           => 'destination_ticket',
@@ -568,13 +592,13 @@ class BookingController extends Controller
             ]);
         }
 
-        // ===== INFO MAKAN (tanpa QR, informasi saja) =====
+        // ===== INFO MAKAN =====
         if ($package->meals_included && count($package->meals_included) > 0) {
             foreach ($package->meals_included as $meal) {
                 PackageBookingItem::create([
                     'package_booking_id' => $pkgBooking->id,
                     'item_type'          => 'meal',
-                    'title'              => "[Meal] {$meal}",  // ✅ DIUBAH
+                    'title'              => "[Meal] {$meal}",
                     'description'        => "Termasuk dalam paket untuk {$guests} orang",
                     'qr_code'            => null,
                     'qr_data'            => null,
@@ -583,13 +607,13 @@ class BookingController extends Controller
             }
         }
 
-        // ===== INFO BENEFIT (tanpa QR, informasi saja) =====
+        // ===== INFO BENEFIT =====
         if ($package->benefits && count($package->benefits) > 0) {
             foreach ($package->benefits as $benefit) {
                 PackageBookingItem::create([
                     'package_booking_id' => $pkgBooking->id,
                     'item_type'          => 'benefit',
-                    'title'              => "[Benefit] {$benefit}",  // ✅ DIUBAH
+                    'title'              => "[Benefit] {$benefit}",
                     'description'        => "Benefit khusus dari paket ini",
                     'qr_code'            => null,
                     'qr_data'            => null,
@@ -597,5 +621,53 @@ class BookingController extends Controller
                 ]);
             }
         }
+    }
+
+    // ✅ DESTINATION TICKET — BARU
+    private function createDestinationTicketBooking(Booking $booking, Request $request): void
+    {
+        $destination = Destination::where('id', $request->destination_id)
+            ->where('status', DestinationStatus::PUBLISHED)
+            ->firstOrFail();
+
+        // Validasi jumlah visitor sama dengan nama visitor
+        if (count($request->visitor_names) !== $request->number_of_visitors) {
+            throw ValidationException::withMessages([
+                'visitor_names' => 'Jumlah nama pengunjung harus sesuai dengan jumlah tiket.',
+            ]);
+        }
+
+        // Generate QR Code
+        $visitorList = collect($request->visitor_names)->map(fn ($name, $i) => ($i + 1) . ". {$name}")->join("\n");
+
+        $qrContent = implode("\n", [
+            'NusaTrip - Tiket Wisata',
+            'Booking: ' . $booking->booking_number,
+            'Destinasi: ' . $destination->name,
+            'Alamat: ' . $destination->address,
+            'Tanggal Kunjungan: ' . Carbon::parse($request->visit_date)->format('d M Y'),
+            'Jam Buka: ' . ($destination->open_hour ? substr($destination->open_hour, 0, 5) . ' - ' . substr($destination->close_hour, 0, 5) : '-'),
+            'Jumlah Pengunjung: ' . $request->number_of_visitors . ' orang',
+            'Daftar Pengunjung:',
+            $visitorList,
+            'CP: ' . $request->contact_person,
+            'Telp: ' . $request->contact_phone,
+        ]);
+
+        $qrFileName = 'DEST-TKT-' . $booking->booking_number . '.svg';
+        $qrPath = 'qrcodes/' . $qrFileName;
+        QrCode::format('svg')->size(300)->margin(1)->generate($qrContent, public_path($qrPath));
+
+        DestinationTicketBooking::create([
+            'booking_id'         => $booking->id,
+            'destination_id'     => $request->destination_id,
+            'visit_date'         => $request->visit_date,
+            'number_of_visitors' => $request->number_of_visitors,
+            'visitor_names'      => $request->visitor_names,
+            'contact_person'     => $request->contact_person,
+            'contact_phone'      => $request->contact_phone,
+            'qr_code'            => url($qrPath),
+            'status'             => 'confirmed',
+        ]);
     }
 }

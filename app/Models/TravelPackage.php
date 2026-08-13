@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class TravelPackage extends Model
 {
       protected $fillable = [
+        'manager_id',
         'destination_id',
         'hotel_id',
         // 'transportation_id' ← DIHAPUS
@@ -90,4 +91,16 @@ class TravelPackage extends Model
               ->where('departure_date', '>=', now()->toDateString());
         });
     }
+
+    public static function generateUniqueSlug(string $name): string
+    {
+        $slug = \Illuminate\Support\Str::slug($name);
+        $count = static::where('slug', 'LIKE', "{$slug}%")->count();
+        return $count ? "{$slug}-{$count}" : $slug;
+    }
+
+    public function getRouteKeyName(): string
+{
+    return 'slug';
+}
 }

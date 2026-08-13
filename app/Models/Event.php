@@ -46,4 +46,16 @@ class Event extends Model
     {
         return $this->hasMany(EventGallery::class);
     }
+
+    public static function generateUniqueSlug(string $name): string
+    {
+        $slug = \Illuminate\Support\Str::slug($name);
+        $count = static::where('slug', 'LIKE', "{$slug}%")->count();
+        return $count ? "{$slug}-{$count}" : $slug;
+    }
+
+    public function getRouteKeyName(): string
+{
+    return 'slug';
+}
 }

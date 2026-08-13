@@ -17,7 +17,7 @@ class UmkmResource extends JsonResource
             'address' => $this->address,
             'phone' => $this->phone,
             'opening_hours' => $this->opening_hours,
-            'average_rating' => round($this->average_rating, 1),
+            'average_rating' => round($this->average_rating ?? 0, 1),
             'status' => $this->status->value,
             'category' => [
                 'id' => $this->category->id,

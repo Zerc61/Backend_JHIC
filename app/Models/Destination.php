@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DestinationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Destination extends Model
 {
@@ -22,6 +23,7 @@ class Destination extends Model
         'open_hour',
         'close_hour',
         'ticket_price',
+        'estimated_cost', // <-- tambahkan
         'phone',
         'website',
         'status',
@@ -37,7 +39,22 @@ class Destination extends Model
         ];
     }
 
-        public function category()
+    // Generate unique slug
+    public static function generateUniqueSlug(string $name): string
+    {
+        $slug = Str::slug($name);
+        $count = static::where('slug', 'LIKE', "{$slug}%")->count();
+        return $count ? "{$slug}-{$count}" : $slug;
+    }
+
+    // Route binding pakai slug
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+    // Relasi
+    public function category()
     {
         return $this->belongsTo(DestinationCategory::class, 'destination_category_id');
     }
@@ -83,25 +100,44 @@ class Destination extends Model
             ->withPivot('day_number', 'sort_order', 'notes');
     }
 
-   public function getMainImageAttribute(): ?string
-{
-    if ($this->relationLoaded('galleries') && $this->galleries->isNotEmpty()) {
-        return $this->galleries->first()->image;
+    public function getMainImageAttribute(): ?string
+    {
+        if ($this->relationLoaded('galleries') && $this->galleries->isNotEmpty()) {
+            return $this->galleries->first()->image;
+        }
+        return null;
     }
-    return null;
-}
 
     public function getAverageRatingAttribute(): float
-{
-    if ($this->relationLoaded('reviews')) {
-        return $this->reviews->avg('rating') ?? 0;
+    {
+        if ($this->relationLoaded('reviews')) {
+            return $this->reviews->avg('rating') ?? 0;
+        }
+        return $this->reviews()->avg('rating') ?? 0;
     }
-    
-    // Fallback: hitung dari DB kalau reviews belum di-load
-    return $this->reviews()->avg('rating') ?? 0;
-}
+
+    public function ticketBookings()
+    {
+        return $this->hasMany(DestinationTicketBooking::class);
+    }
 
 
+     public function scopeFilter($query, array $filters)
+    {
+        $query->when($filters['search'] ?? null, function ($q, $search) {
+            $q->where('name', 'like', "%{$search}%");
+        });
+
+        $query->when($filters['status'] ?? null, function ($q, $status) {
+            $q->where('status', $status);
+        });
+
+        $query->when($filters['category_id'] ?? null, function ($q, $categoryId) {
+            $q->where('destination_category_id', $categoryId);
+        });
+
+        return $query;
+    }
 
     
 }

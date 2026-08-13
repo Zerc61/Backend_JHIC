@@ -79,15 +79,23 @@ class AuthController extends Controller
 
 
     public function logout(Request $request): JsonResponse
-    {
-        Auth::guard('web')->logout();
+{
+    // Hapus token Sanctum jika memakai token API (bukan session)
+    $token = $request->user()->currentAccessToken();
+    if ($token && !($token instanceof \Laravel\Sanctum\TransientToken)) {
+        $token->delete();
+    }
+
+    // Hapus session untuk SPA auth (stateful) — hanya jika ada session
+    if ($request->hasSession()) {
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
-        return response()->json([
-            'message' => 'Logout berhasil',
-        ]);
     }
+
+    return response()->json([
+        'message' => 'Logout berhasil',
+    ]);
+}
 
     public function me(Request $request): JsonResponse
 {

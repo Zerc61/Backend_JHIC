@@ -84,6 +84,31 @@ class MyBookingResource extends JsonResource
             ];
         }
 
+        // ✅ DESTINATION TICKET — BARU
+        if ($this->booking_type === 'destination_ticket' && $this->relationLoaded('destinationTicketBooking')) {
+            $dtb = $this->destinationTicketBooking;
+            $dest = $dtb->destination;
+
+            $data['destination_ticket_detail'] = [
+                'destination_id'     => $dest?->id,
+                'destination_name'   => $dest?->name,
+                'destination_slug'   => $dest?->slug,
+                'destination_address'=> $dest?->address,
+                'visit_date'         => $dtb->visit_date?->format('Y-m-d'),
+                'visit_date_formatted' => $dtb->visit_date?->format('d F Y'),
+                'open_hour'          => $dest?->open_hour ? substr($dest->open_hour, 0, 5) : null,
+                'close_hour'         => $dest?->close_hour ? substr($dest->close_hour, 0, 5) : null,
+                'number_of_visitors' => $dtb->number_of_visitors,
+                'visitor_names'      => $dtb->visitor_names,
+                'contact_person'     => $dtb->contact_person,
+                'contact_phone'      => $dtb->contact_phone,
+                'qr_code'            => $dtb->qr_code,
+                'booking_status'     => $dtb->status,
+                'price_per_ticket'   => $dest ? (float) $dest->ticket_price : null,
+                'price_per_ticket_formatted' => $dest ? \App\Helpers\GeneralHelper::formatRupiah((float) $dest->ticket_price) : null,
+            ];
+        }
+
         return $data;
     }
 }
