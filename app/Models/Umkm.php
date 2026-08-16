@@ -11,7 +11,7 @@ class Umkm extends Model
 {
     use HasFactory;
 
-   protected $fillable = [
+    protected $fillable = [
         'user_id', 'destination_id', 'umkm_category_id', 'name', 'slug',
         'description', 'address', 'latitude', 'longitude', 'phone',
         'opening_hours', 'status', 'admin_note',
@@ -26,12 +26,28 @@ class Umkm extends Model
         ];
     }
 
+    // --- Accessor: cover image dari produk pertama ---
+    public function getCoverImageAttribute(): ?string
+    {
+        if ($this->relationLoaded('products') && $this->products->isNotEmpty()) {
+            return $this->products->first()->image;
+        }
+        return null;
+    }
+
+    // --- Accessor: average rating ---
+    public function getAverageRatingAttribute(): float
+    {
+        return $this->reviews()->avg('rating') ?? 0;
+    }
+
+    // --- Relationships ---
     public function owner()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-   public function user()
+    public function user()
     {
         return $this->belongsTo(User::class);
     }

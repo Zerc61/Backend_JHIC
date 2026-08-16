@@ -15,13 +15,10 @@ class ProductResource extends JsonResource
             'slug' => $this->slug,
             'description' => $this->description,
             'price' => (float) $this->price,
-            'price_formatted' => \App\Helpers\GeneralHelper::formatRupiah((float) $this->price),
             'stock' => $this->stock,
             'unit' => $this->unit,
-            'image' => $this->image ? url("storage/{$this->image}") : null,
-            'is_available' => $this->isAvailable(),
-            'average_rating' => round($this->average_rating ?? 0, 1),
-            'status' => is_object($this->status) ? $this->status->value : (string) $this->status,
+            'image' => $this->image,           // ← penting: bukan thumbnail
+            'status' => $this->status->value ?? $this->status,
         ];
     }
 }
