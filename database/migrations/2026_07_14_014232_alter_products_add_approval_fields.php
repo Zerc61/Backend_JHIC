@@ -9,17 +9,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Ubah enum status: tambah pending, approved, rejected
-        //    Data lama yang 'available'/'unavailable' tetap aman
-        DB::statement("
-            ALTER TABLE products MODIFY COLUMN status 
-            ENUM('pending','approved','rejected','available','unavailable') 
-            NOT NULL DEFAULT 'pending'
-        ");
+        // 1. Ubah enum status: tambah pending, approved, rejected (MySQL only)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("
+                ALTER TABLE products MODIFY COLUMN status 
+                ENUM('pending','approved','rejected','available','unavailable') 
+                NOT NULL DEFAULT 'pending'
+            ");
+        }
 
         // 2. Tambah kolom admin_note untuk alasan approve/reject
         Schema::table('products', function (Blueprint $table) {
-            $table->text('admin_note')->nullable()->after('status');
+            if (!Schema::hasColumn('products', 'admin_note')) {
+                $table->text('admin_note')->nullable()->after('status');
+            }
         });
     }
 
@@ -27,14 +30,18 @@ return new class extends Migration
     {
         // Hapus admin_note dulu
         Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('admin_note');
+            if (Schema::hasColumn('products', 'admin_note')) {
+                $table->dropColumn('admin_note');
+            }
         });
 
-        // Kembalikan enum ke semula
-        DB::statement("
-            ALTER TABLE products MODIFY COLUMN status 
-            ENUM('available','unavailable') 
-            NOT NULL DEFAULT 'available'
-        ");
+        // Kembalikan enum ke semula (MySQL only)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("
+                ALTER TABLE products MODIFY COLUMN status 
+                ENUM('available','unavailable') 
+                NOT NULL DEFAULT 'available'
+            ");
+        }
     }
 };

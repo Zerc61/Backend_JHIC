@@ -9,8 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Tambah 'destination_ticket' ke enum booking_type
-        DB::statement("ALTER TABLE bookings MODIFY COLUMN booking_type ENUM('hotel','transportation','transport_ticket','travel_package','destination_ticket') NOT NULL");
+        // Tambah 'destination_ticket' ke enum booking_type (MySQL only, SQLite skip)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE bookings MODIFY COLUMN booking_type ENUM('hotel','transportation','transport_ticket','travel_package','destination_ticket') NOT NULL");
+        }
 
         Schema::create('destination_ticket_bookings', function (Blueprint $table) {
             $table->id();
@@ -33,6 +35,8 @@ return new class extends Migration
     {
         Schema::dropIfExists('destination_ticket_bookings');
 
-        DB::statement("ALTER TABLE bookings MODIFY COLUMN booking_type ENUM('hotel','transportation','transport_ticket','travel_package') NOT NULL");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE bookings MODIFY COLUMN booking_type ENUM('hotel','transportation','transport_ticket','travel_package') NOT NULL");
+        }
     }
 };

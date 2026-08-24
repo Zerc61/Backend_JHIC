@@ -6,6 +6,12 @@ use App\Http\Controllers\Api\UmkmController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\RefundController;
+use App\Http\Controllers\Api\VoucherController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\ReviewController;
@@ -16,6 +22,7 @@ use App\Http\Controllers\Api\HotelController;
 use App\Http\Controllers\Api\TravelPackageController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\TransportTicketController;
+use App\Http\Controllers\Api\TransportationController;
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminDestinationController;
 use App\Http\Controllers\Api\Admin\AdminHotelController;
@@ -95,9 +102,18 @@ Route::prefix('transport-tickets')->group(function () {
 Route::get('/transport-tickets', [TransportTicketController::class, 'index']);
 
 // Travel Packages
+Route::get('/travel-packages', [TravelPackageController::class, 'index']);
 Route::get('/travel-packages/{slug}', [TravelPackageController::class, 'show']);
 
+// Transportations (Rental Kendaraan)
+Route::get('/transportations', [TransportationController::class, 'index']);
+Route::get('/transportations/{slug}', [TransportationController::class, 'show']);
 
+// Vouchers (Public list)
+Route::get('/vouchers', [VoucherController::class, 'list']);
+
+// Webhook Midtrans (Public, but with signature verification)
+Route::post('/midtrans/notification', [WalletController::class, 'handleMidtransNotification']);
 
 /*
 |--------------------------------------------------------------------------
@@ -130,10 +146,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet/top-up-history', [WalletController::class, 'topUpHistory']);
     Route::post('/wallet/top-up', [WalletController::class, 'requestTopUp']);
     Route::get('/wallet/check-status/{orderId}', [WalletController::class, 'checkTopUpStatus']);
-    Route::post('/wallet/simulate-webhook/{orderId}', [WalletController::class, 'simulateWebhook']);
-
-    // Webhook Midtrans
-    Route::post('/midtrans/notification', [WalletController::class, 'handleMidtransNotification']);
 
     // Wishlist
    Route::get('/wishlists', [WishlistController::class, 'index']);
@@ -157,6 +169,42 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('{bookingNumber}', [BookingController::class, 'show']);
         Route::post('{bookingNumber}/cancel', [BookingController::class, 'cancel']);
     });
+
+    // Invoices
+    Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
+    Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::put('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::put('/notifications/{notification}/unread', [NotificationController::class, 'markAsUnread']);
+    Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'delete']);
+    Route::delete('/notifications', [NotificationController::class, 'deleteAll']);
+
+    // Refunds
+    Route::get('/refunds', [RefundController::class, 'index']);
+    Route::get('/refunds/{refund}', [RefundController::class, 'show']);
+    Route::post('/orders/{order}/request-refund', [RefundController::class, 'requestOrderRefund']);
+    Route::post('/bookings/{booking}/request-refund', [RefundController::class, 'requestBookingRefund']);
+
+    // Vouchers
+    Route::post('/vouchers/validate', [VoucherController::class, 'validate']);
+    Route::post('/orders/{order}/apply-voucher', [VoucherController::class, 'applyToOrder']);
+    Route::post('/bookings/{booking}/apply-voucher', [VoucherController::class, 'applyToBooking']);
+
+    // Payments (Direct gateway)
+    Route::post('/orders/{order}/initiate-payment', [PaymentController::class, 'initiateOrderPayment']);
+    Route::post('/bookings/{booking}/initiate-payment', [PaymentController::class, 'initiateBookingPayment']);
+    Route::get('/payments/{payment}/status', [PaymentController::class, 'checkPaymentStatus']);
+    Route::get('/payments/history', [PaymentController::class, 'getPaymentHistory']);
+
+    // Booking Holds & Availability
+    Route::get('/hotel-rooms/{roomId}/availability', [AvailabilityController::class, 'hotelRoomAvailability']);
+    Route::get('/transportations/{transportationId}/availability', [AvailabilityController::class, 'transportationAvailability']);
+    Route::get('/packages/{packageId}/availability', [AvailabilityController::class, 'packageAvailability']);
 
 });
 
@@ -212,6 +260,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::get('umkms/rejected', [AdminUmkmController::class, 'rejected']);
     Route::put('umkms/{umkm}/approve', [AdminUmkmController::class, 'approve']);
     Route::put('umkms/{umkm}/reject', [AdminUmkmController::class, 'reject']);
+    Route::post('umkms/{umkm}/photo', [AdminUmkmController::class, 'uploadPhoto']);
     Route::apiResource('umkms', AdminUmkmController::class)->except(['store']);
 
     // Product Approval
@@ -232,6 +281,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     // Reviews
     Route::get('reviews', [AdminReviewController::class, 'index']);
     Route::delete('reviews/{review}', [AdminReviewController::class, 'destroy']);
+
+    // Webhook Simulation (Admin only, testing/local environment)
+    if (app()->environment(['local', 'testing'])) {
+        Route::post('wallet/simulate-webhook/{orderId}', [WalletController::class, 'simulateWebhook']);
+    }
 });
 
 /*

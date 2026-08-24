@@ -14,7 +14,7 @@ class Umkm extends Model
     protected $fillable = [
         'user_id', 'destination_id', 'umkm_category_id', 'name', 'slug',
         'description', 'address', 'latitude', 'longitude', 'phone',
-        'opening_hours', 'status', 'admin_note',
+        'opening_hours', 'photo', 'status', 'admin_note',
     ];
 
     protected function casts(): array

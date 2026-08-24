@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\InvoiceResource;
 use App\Models\Order;
-// use App\Models\OrderItem;
+use App\Models\Invoice;
+use App\Models\Notification;
 use App\Models\Product;
 // use App\Models\Wallet;
 use App\Enums\OrderStatus;
@@ -102,6 +104,9 @@ class OrderController extends Controller
         abort(400, "Wallet tidak ditemukan. Silakan hubungi admin.");
     }
 
+    // Lock wallet untuk mencegah race condition
+    $wallet = $wallet->lockForUpdate()->first();
+
     $coinAmount = ceil($totalPrice / $coinToRupiahRate * 10000) / 10000;
     
     if (!$wallet->hasSufficientBalance($coinAmount)) {
@@ -152,9 +157,29 @@ class OrderController extends Controller
             $qrSvg = QrCode::format('svg')->size(200)->generate($qrContent);
             $order->update(['qr_code' => $qrSvg]);
 
+            // 7. Create Invoice
+            $invoice = Invoice::createFromOrder($order);
+
+            // 8. Create Notification
+            if ($paymentMethod === PaymentMethod::COIN) {
+                Notification::create([
+                    'user_id' => $user->id,
+                    'title' => 'Pesanan Dibayar',
+                    'message' => "Pesanan #{$order->order_number} telah dibayar. Total: Rp " . number_format($order->total_price, 0, ',', '.'),
+                    'type' => 'order_status',
+                    'notifiable_type' => Order::class,
+                    'notifiable_id' => $order->id,
+                    'action' => [
+                        'label' => 'Lihat Pesanan',
+                        'url' => "/orders/{$order->id}",
+                    ],
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Pesanan berhasil dibuat!',
                 'data' => new OrderResource($order->load('items', 'umkm')),
+                'invoice' => new InvoiceResource($invoice),
             ], 201);
         });
     }

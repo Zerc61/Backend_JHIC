@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Umkm;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AdminUmkmController extends Controller
 {
@@ -120,6 +121,25 @@ class AdminUmkmController extends Controller
         $umkm->update($validated);
 
         return response()->json(['message' => 'UMKM berhasil diupdate.', 'data' => $umkm]);
+    }
+
+    public function uploadPhoto(Request $request, Umkm $umkm): JsonResponse
+    {
+        $validated = $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ]);
+
+        if ($umkm->photo) {
+            Storage::disk('public')->delete($umkm->photo);
+        }
+
+        $path = $request->file('photo')->store('umkm-photos', 'public');
+        $umkm->update(['photo' => $path]);
+
+        return response()->json([
+            'message' => 'Foto UMKM berhasil diunggah.',
+            'data' => $umkm->fresh(),
+        ]);
     }
 
     public function destroy(Umkm $umkm): JsonResponse

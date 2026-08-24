@@ -146,6 +146,9 @@ class BookingController extends Controller
         }
 
         return DB::transaction(function () use ($request, $totalPrice, $coinAmount, $rate, $wallet) {
+            // Lock wallet untuk mencegah race condition
+            $wallet = $wallet->lockForUpdate()->first();
+            
             $balanceBefore = $wallet->balance;
 
             $booking = Booking::create([

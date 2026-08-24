@@ -24,7 +24,6 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'phone' => 'nullable|string|max:20',
-            'role' => ['sometimes', new Enum(UserRole::class)],
         ]);
 
         $user = User::create([
@@ -32,11 +31,10 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'phone' => $request->phone,
-            'role' => $request->role ?? UserRole::TOURIST,
+            'role' => UserRole::TOURIST,
             'status' => UserStatus::ACTIVE,
         ]);
 
-        // Buat wallet otomatis untuk semua user
         Wallet::create([
             'user_id' => $user->id,
             'balance' => 0,

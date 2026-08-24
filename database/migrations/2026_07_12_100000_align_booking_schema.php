@@ -21,8 +21,10 @@ return new class extends Migration
             });
         }
 
-        // Menyelaraskan enum lama dengan tipe booking yang dipakai controller.
-        DB::statement("ALTER TABLE bookings MODIFY booking_type ENUM('hotel', 'transportation', 'transport_ticket', 'travel_package') NOT NULL");
+        // Menyelaraskan enum lama dengan tipe booking yang dipakai controller (MySQL only)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE bookings MODIFY booking_type ENUM('hotel', 'transportation', 'transport_ticket', 'travel_package') NOT NULL");
+        }
     }
 
     public function down(): void
@@ -33,6 +35,8 @@ return new class extends Migration
             });
         }
 
-        DB::statement("ALTER TABLE bookings MODIFY booking_type ENUM('hotel', 'transport_ticket', 'travel_package') NOT NULL");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE bookings MODIFY booking_type ENUM('hotel', 'transport_ticket', 'travel_package') NOT NULL");
+        }
     }
 };
