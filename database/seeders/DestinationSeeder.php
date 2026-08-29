@@ -172,9 +172,9 @@ class DestinationSeeder extends Seeder
         
         // Ambil ID User pertama sebagai pembuat event (Admin)
        $creator = User::firstOrCreate(
-            ['email' => 'admin@nusatrip.com'],
+            ['email' => 'admin@ejt.com'],
             [
-                'name' => 'Admin NusaTrip',
+                'name' => 'Admin EJT',
                 'password' => bcrypt('password123'), // Ganti kalau mau
             ]
         );

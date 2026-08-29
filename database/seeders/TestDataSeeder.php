@@ -155,10 +155,10 @@ class TestDataSeeder extends Seeder
         // 4. USERS (Admin, Manager, UMKM, Tourist)
         // ============================================================
         $users = [
-            ['email' => 'admin@nusatrip.com',    'name' => 'Admin NusaTrip',        'role' => 'admin',   'status' => 'active'],
-            ['email' => 'manager@nusatrip.com',  'name' => 'Manager Lombok',       'role' => 'manager', 'status' => 'active'],
-            ['email' => 'umkm@nusatrip.com',     'name' => 'UMKM Demo NusaTrip',   'role' => 'umkm',    'status' => 'active'],
-            ['email' => 'tourist@nusatrip.com',  'name' => 'Tourist Test',         'role' => 'tourist', 'status' => 'active'],
+            ['email' => 'admin@ejt.com',    'name' => 'Admin EJT',        'role' => 'admin',   'status' => 'active'],
+            ['email' => 'manager@ejt.com',  'name' => 'Manager Jatim',       'role' => 'manager', 'status' => 'active'],
+            ['email' => 'umkm@ejt.com',     'name' => 'UMKM Demo EJT',   'role' => 'umkm',    'status' => 'active'],
+            ['email' => 'tourist@ejt.com',  'name' => 'Tourist Test',         'role' => 'tourist', 'status' => 'active'],
         ];
         $userIds = [];
         foreach ($users as $u) {
@@ -175,10 +175,10 @@ class TestDataSeeder extends Seeder
                 $userIds[$u['email']] = $existing->id;
             }
         }
-        $adminId   = $userIds['admin@nusatrip.com'];
-        $managerId = $userIds['manager@nusatrip.com'];
-        $umkmId    = $userIds['umkm@nusatrip.com'];
-        $touristId = $userIds['tourist@nusatrip.com'];
+        $adminId   = $userIds['admin@ejt.com'];
+        $managerId = $userIds['manager@ejt.com'];
+        $umkmId    = $userIds['umkm@ejt.com'];
+        $touristId = $userIds['tourist@ejt.com'];
 
         // Wallets
         foreach ($userIds as $uid) {
@@ -773,10 +773,10 @@ class TestDataSeeder extends Seeder
         $this->command->info('════════════════════════════════════════');
         $this->command->newLine();
         $this->command->info('Akun test:');
-        $this->command->info('  Tourist  : tourist@nusatrip.com / password123');
-        $this->command->info('  UMKM     : umkm@nusatrip.com / password123');
-        $this->command->info('  Manager  : manager@nusatrip.com / password123');
-        $this->command->info('  Admin    : admin@nusatrip.com / password123');
+        $this->command->info('  Tourist  : tourist@ejt.com / password123');
+        $this->command->info('  UMKM     : umkm@ejt.com / password123');
+        $this->command->info('  Manager  : manager@ejt.com / password123');
+        $this->command->info('  Admin    : admin@ejt.com / password123');
         $this->command->newLine();
         $this->command->info('Wallet Tourist: 5.000 Coin (≈ Rp 10.000.000)');
     }

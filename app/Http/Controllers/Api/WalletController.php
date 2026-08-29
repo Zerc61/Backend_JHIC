@@ -139,7 +139,7 @@ class WalletController extends Controller
                     "id" => "TOPUP-COIN",
                     "price" => (int) $request->amount_rupiah,
                     "quantity" => 1,
-                    "name" => "Top Up {$coinsReceived} NusaCoin",
+                    "name" => "Top Up {$coinsReceived} EJTCoin",
                     "category" => "Top Up Wallet",
                 ],
             ],

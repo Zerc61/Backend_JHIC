@@ -141,7 +141,7 @@ class BookingController extends Controller
 
         if (!$wallet || $wallet->balance < $coinAmount) {
             throw ValidationException::withMessages([
-                'balance' => 'Saldo NusaCoin tidak mencukupi. Dibutuhkan ' . number_format($coinAmount, 1) . ' Coin.',
+                'balance' => 'Saldo EJTCoin tidak mencukupi. Dibutuhkan ' . number_format($coinAmount, 1) . ' Coin.',
             ]);
         }
 
@@ -242,7 +242,7 @@ class BookingController extends Controller
             }
 
             return response()->json([
-                'message' => 'Booking berhasil dibatalkan. NusaCoin telah dikembalikan.',
+                'message' => 'Booking berhasil dibatalkan. EJTCoin telah dikembalikan.',
             ]);
         });
     }
@@ -367,7 +367,7 @@ class BookingController extends Controller
         }
 
         $qrContent = implode("\n", [
-            'NusaTrip - Hotel Check-in',
+            'East Java Traveling (EJT) - Hotel Check-in',
             'Booking: ' . $booking->booking_number,
             'Hotel: ' . Hotel::find($request->hotel_id)->name,
             'Room: ' . $room->name,
@@ -442,7 +442,7 @@ class BookingController extends Controller
             $ticketNumber = $serviceResult['ticket_numbers'][$index] ?? null;
 
             $qrContent = implode("\n", [
-                'NusaTrip - Boarding Pass',
+                'East Java Traveling (EJT) - Boarding Pass',
                 'Booking: ' . $booking->booking_number,
                 'Provider: ' . $ticket->provider,
                 $ticket->transport_mode === 'pesawat' ? 'Flight' : 'Trip',
@@ -527,7 +527,7 @@ class BookingController extends Controller
         if ($package->hotel_id) {
             $hotel = $package->hotel;
             $qrContent = implode("\n", [
-                'NusaTrip - Hotel Check-in',
+                'East Java Traveling (EJT) - Hotel Check-in',
                 'Booking: ' . $bookingNum,
                 'Paket: ' . $package->name,
                 'Hotel: ' . $hotel->name,
@@ -564,7 +564,7 @@ class BookingController extends Controller
         $destinations = Destination::where('id', $package->destination_id)->get();
         foreach ($destinations as $dest) {
             $qrContent = implode("\n", [
-                'NusaTrip - Tiket Wisata',
+                'East Java Traveling (EJT) - Tiket Wisata',
                 'Booking: ' . $bookingNum,
                 'Paket: ' . $package->name,
                 'Destinasi: ' . $dest->name,
@@ -644,7 +644,7 @@ class BookingController extends Controller
         $visitorList = collect($request->visitor_names)->map(fn ($name, $i) => ($i + 1) . ". {$name}")->join("\n");
 
         $qrContent = implode("\n", [
-            'NusaTrip - Tiket Wisata',
+            'East Java Traveling (EJT) - Tiket Wisata',
             'Booking: ' . $booking->booking_number,
             'Destinasi: ' . $destination->name,
             'Alamat: ' . $destination->address,

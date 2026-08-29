@@ -17,7 +17,7 @@ class InvoiceResource extends JsonResource
             'transaction_type_label' => match ($this->transaction_type) {
                 'order' => 'Pesanan UMKM',
                 'booking' => 'Booking Perjalanan',
-                'top_up' => 'Top Up NusaCoin',
+                'top_up' => 'Top Up EJTCoin',
                 default => $this->transaction_type,
             },
             'subtotal' => (float) $this->subtotal,
@@ -27,7 +27,7 @@ class InvoiceResource extends JsonResource
             'total_formatted' => $this->formatted_amount,
             'payment_method' => $this->payment_method,
             'payment_method_label' => match ($this->payment_method) {
-                'coin' => 'NusaCoin',
+                'coin' => 'EJTCoin',
                 'cash_on_pickup' => 'Bayar Saat Ambil',
                 'card' => 'Kartu Kredit',
                 'transfer' => 'Transfer Bank',

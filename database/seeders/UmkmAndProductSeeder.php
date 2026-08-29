@@ -13,11 +13,11 @@ class UmkmAndProductSeeder extends Seeder
     public function run(): void
     {
         // 1. BUAT DULU 1 USER DUMMY UMKM SEBAGAI PEMILIK
-        $user = DB::table('users')->where('email', 'umkm@nusatrip.com')->first();
+        $user = DB::table('users')->where('email', 'umkm@ejt.com')->first();
         if (!$user) {
             $userId = DB::table('users')->insertGetId([
-                'name' => 'UMKM Demo NusaTrip',
-                'email' => 'umkm@nusatrip.com',
+                'name' => 'UMKM Demo EJT',
+                'email' => 'umkm@ejt.com',
                 'password' => Hash::make('password123'),
                 'phone' => '081234567890',
                 'role' => 'umkm',

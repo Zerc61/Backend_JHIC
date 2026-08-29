@@ -164,7 +164,7 @@ class Notification extends Model
         return self::create([
             'user_id' => $topUp->user_id,
             'title' => 'Pembayaran Diterima',
-            'message' => "Top-up Rp " . number_format($topUp->amount_rupiah, 0, ',', '.') . " berhasil. {$topUp->coins_received} NusaCoin telah ditambahkan ke wallet Anda.",
+            'message' => "Top-up Rp " . number_format($topUp->amount_rupiah, 0, ',', '.') . " berhasil. {$topUp->coins_received} EJTCoin telah ditambahkan ke wallet Anda.",
             'type' => 'payment_received',
             'notifiable_type' => TopUpTransaction::class,
             'notifiable_id' => $topUp->id,
