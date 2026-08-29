@@ -324,10 +324,22 @@ class WalletController extends Controller
     // SEMENTARA UNTUK SIMULASI WEBHOOK (HAPUS SETELAH SELESAI UJI COBA)
     public function simulateWebhook(string $orderId): JsonResponse
     {
-        $topUp = TopUpTransaction::where(
-            "midtrans_order_id",
-            $orderId,
-        )->firstOrFail();
+        // Double guard: tetap 404 walau route cache bocor ke production
+        if (! app()->environment(["local", "testing"])) {
+            return response()->json(
+                ["message" => "Not Found"],
+                404,
+            );
+        }
+
+        // User biasa hanya boleh mensimulasikan top-up miliknya sendiri.
+        // Admin boleh mensimulasikan top-up siapa pun (via route /api/admin/...).
+        $topUp = TopUpTransaction::where("midtrans_order_id", $orderId)
+            ->when(
+                ! auth()->user()?->isAdmin(),
+                fn ($query) => $query->where("user_id", auth()->id()),
+            )
+            ->firstOrFail();
 
         if ($topUp->isPending()) {
             DB::transaction(function () use ($topUp) {

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\TopUpStatus;
+use App\Enums\UserRole;
 use App\Models\TopUpTransaction;
 use App\Models\User;
 use App\Models\Wallet;
@@ -170,17 +171,31 @@ class WalletSecurityTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        config(['app.env' => 'production']);
+        Wallet::create(['user_id' => $user->id, 'balance' => 0]);
 
-        $response = $this->postJson('/api/admin/wallet/simulate-webhook/ORDER-123');
+        TopUpTransaction::create([
+            'user_id' => $user->id,
+            'amount_rupiah' => 50000,
+            'rate_per_coin' => 2000,
+            'coins_received' => 25,
+            'status' => TopUpStatus::PENDING,
+            'midtrans_order_id' => 'ORDER-123',
+        ]);
+
+        // app()->environment() membaca binding 'env', bukan config('app.env')
+        app()->detectEnvironment(fn () => 'production');
+
+        // Guard environment dievaluasi per-request di controller,
+        // sehingga tetap 404 walau route sempat ter-cache di env lain.
+        $response = $this->postJson('/api/wallet/simulate-webhook/ORDER-123');
 
         $response->assertStatus(404);
     }
 
     public function test_simulation_endpoint_available_in_local_environment()
     {
-        $user = User::factory()->create();
-        $user->assignRole('admin');
+        // Middleware 'admin' membaca kolom enum role, bukan Spatie Permission
+        $user = User::factory()->create(['role' => UserRole::ADMIN]);
         $this->actingAs($user);
 
         $wallet = Wallet::create([
@@ -204,5 +219,63 @@ class WalletSecurityTest extends TestCase
         $response->assertStatus(200);
         $wallet->refresh();
         $this->assertEquals(25, $wallet->balance);
+    }
+
+    public function test_user_can_simulate_own_topup_in_local_environment()
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'balance' => 0,
+        ]);
+
+        $topUp = TopUpTransaction::create([
+            'user_id' => $user->id,
+            'amount_rupiah' => 50000,
+            'rate_per_coin' => 2000,
+            'coins_received' => 25,
+            'status' => TopUpStatus::PENDING,
+            'midtrans_order_id' => 'ORDER-USER-SIM-123',
+        ]);
+
+        config(['app.env' => 'local']);
+
+        $response = $this->postJson('/api/wallet/simulate-webhook/ORDER-USER-SIM-123');
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('current_status', TopUpStatus::SUCCESS->value);
+        $wallet->refresh();
+        $this->assertEquals(25, $wallet->balance);
+    }
+
+    public function test_user_cannot_simulate_other_users_topup()
+    {
+        $owner = User::factory()->create();
+        $attacker = User::factory()->create();
+        $this->actingAs($attacker);
+
+        Wallet::create(['user_id' => $owner->id, 'balance' => 0]);
+        Wallet::create(['user_id' => $attacker->id, 'balance' => 0]);
+
+        TopUpTransaction::create([
+            'user_id' => $owner->id,
+            'amount_rupiah' => 50000,
+            'rate_per_coin' => 2000,
+            'coins_received' => 25,
+            'status' => TopUpStatus::PENDING,
+            'midtrans_order_id' => 'ORDER-OWNER-123',
+        ]);
+
+        config(['app.env' => 'local']);
+
+        $response = $this->postJson('/api/wallet/simulate-webhook/ORDER-OWNER-123');
+
+        $response->assertStatus(404);
+        $this->assertDatabaseHas('top_up_transactions', [
+            'midtrans_order_id' => 'ORDER-OWNER-123',
+            'status' => TopUpStatus::PENDING->value,
+        ]);
     }
 }

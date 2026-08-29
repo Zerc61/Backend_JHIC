@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Destination;
 use App\Models\Hotel;
 use App\Models\TravelPackage;
+use App\Models\Transportation;
 use App\Enums\BookingStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,9 +21,10 @@ class ManagerBookingController extends Controller
         $hotelIds = Hotel::where('manager_id', $managerId)->pluck('id');
         $destinationIds = Destination::where('manager_id', $managerId)->pluck('id');
         $packageIds = TravelPackage::where('manager_id', $managerId)->pluck('id');
+        $transportationIds = Transportation::where('manager_id', $managerId)->pluck('id');
 
         $query = Booking::with(['user'])
-            ->where(function ($q) use ($hotelIds, $destinationIds, $packageIds) {
+            ->where(function ($q) use ($hotelIds, $destinationIds, $packageIds, $transportationIds) {
                 // Booking hotel milik manager
                 $q->where('booking_type', 'hotel')
                   ->whereHas('hotelBooking', fn($hq) => $hq->whereIn('hotel_id', $hotelIds))
@@ -33,7 +35,11 @@ class ManagerBookingController extends Controller
 
                 // Booking travel package milik manager
                 ->orWhere('booking_type', 'travel_package')
-                  ->whereHas('packageBooking', fn($pq) => $pq->whereIn('travel_package_id', $packageIds));
+                  ->whereHas('packageBooking', fn($pq) => $pq->whereIn('travel_package_id', $packageIds))
+
+                // Booking transportasi sewaan milik manager
+                ->orWhere('booking_type', 'transportation')
+                  ->whereHas('transportationBooking', fn($tq) => $tq->whereIn('transportation_id', $transportationIds));
             });
 
         // Filter tambahan
@@ -132,6 +138,11 @@ class ManagerBookingController extends Controller
                 'cancelled' => 'cancelled',
                 default => 'confirmed',
             },
+            'transportation' => match ($detailStatus) {
+                'completed' => 'completed',
+                'cancelled' => 'cancelled',
+                default => 'confirmed',
+            },
             default => $detailStatus,
         };
     }
@@ -144,6 +155,7 @@ class ManagerBookingController extends Controller
             'hotel' => $booking->hotelBooking && Hotel::where('id', $booking->hotelBooking->hotel_id)->where('manager_id', $managerId)->exists(),
             'destination_ticket' => $booking->destinationTicketBooking && Destination::where('id', $booking->destinationTicketBooking->destination_id)->where('manager_id', $managerId)->exists(),
             'travel_package' => $booking->packageBooking && TravelPackage::where('id', $booking->packageBooking->travel_package_id)->where('manager_id', $managerId)->exists(),
+            'transportation' => $booking->transportationBooking && Transportation::where('id', $booking->transportationBooking->transportation_id)->where('manager_id', $managerId)->exists(),
             default => false,
         };
     }
@@ -154,6 +166,7 @@ class ManagerBookingController extends Controller
             'hotel' => ['confirmed', 'checked_in', 'checked_out', 'cancelled'],
             'destination_ticket' => ['confirmed', 'used', 'cancelled'],
             'travel_package' => ['confirmed', 'completed', 'cancelled'],
+            'transportation' => ['confirmed', 'completed', 'cancelled'],
             default => [],
         };
     }

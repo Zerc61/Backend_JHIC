@@ -9,7 +9,7 @@ use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\Notification;
 use App\Models\Product;
-// use App\Models\Wallet;
+use App\Models\Wallet;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\ProductStatus;
@@ -105,7 +105,8 @@ class OrderController extends Controller
     }
 
     // Lock wallet untuk mencegah race condition
-    $wallet = $wallet->lockForUpdate()->first();
+    // PENTING: kunci wallet milik user ini, bukan row wallet pertama di tabel
+    $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
 
     $coinAmount = ceil($totalPrice / $coinToRupiahRate * 10000) / 10000;
     

@@ -147,6 +147,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/wallet/top-up', [WalletController::class, 'requestTopUp']);
     Route::get('/wallet/check-status/{orderId}', [WalletController::class, 'checkTopUpStatus']);
 
+    // Webhook Simulation (khusus local/testing, milik user yang login)
+    if (app()->environment(['local', 'testing'])) {
+        Route::post('wallet/simulate-webhook/{orderId}', [WalletController::class, 'simulateWebhook']);
+    }
+
     // Wishlist
    Route::get('/wishlists', [WishlistController::class, 'index']);
     Route::post('/wishlists', [WishlistController::class, 'store']);

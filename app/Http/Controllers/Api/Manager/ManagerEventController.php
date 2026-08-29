@@ -121,9 +121,12 @@ class ManagerEventController extends Controller
         $this->verifyOwnership($event);
 
         $validated = $request->validate([
-            'image' => 'required|string|max:500',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'caption' => 'nullable|string|max:255',
         ]);
+
+        $path = $request->file('image')->store('event-galleries', 'public');
+        $validated['image'] = $path;
 
         $gallery = $event->galleries()->create($validated);
 

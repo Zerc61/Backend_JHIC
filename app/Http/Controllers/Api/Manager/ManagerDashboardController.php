@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Destination;
 use App\Models\Hotel;
 use App\Models\TravelPackage;
+use App\Models\Transportation;
 use App\Models\Event;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -56,6 +57,9 @@ class ManagerDashboardController extends Controller
         // Event
         $events = Event::where('created_by', $managerId);
 
+        // Transportasi
+        $transportations = Transportation::where('manager_id', $managerId);
+
         return response()->json([
             'destinations' => [
                 'total' => $destinations->count(),
@@ -72,6 +76,11 @@ class ManagerDashboardController extends Controller
                 'total' => $packages->count(),
                 'published' => (clone $packages)->where('status', 'published')->count(),
                 'draft' => (clone $packages)->where('status', 'draft')->count(),
+            ],
+            'transportation' => [
+                'total' => $transportations->count(),
+                'published' => (clone $transportations)->where('status', 'published')->count(),
+                'draft' => (clone $transportations)->where('status', 'draft')->count(),
             ],
             'events' => [
                 'total' => $events->count(),

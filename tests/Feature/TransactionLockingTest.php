@@ -54,7 +54,7 @@ class TransactionLockingTest extends TestCase
         ]);
 
         $response->assertStatus(400);
-        $response->assertJsonFragment(['message' => 'Stok']);
+        $this->assertStringContainsString('Stok', $response->json('message'));
 
         $product->refresh();
         $this->assertEquals(2, $product->stock);
@@ -98,7 +98,7 @@ class TransactionLockingTest extends TestCase
         $user = User::factory()->create();
         $wallet = Wallet::create([
             'user_id' => $user->id,
-            'balance' => 50,
+            'balance' => 10,
         ]);
 
         $umkm = Umkm::factory()->create();
@@ -112,6 +112,7 @@ class TransactionLockingTest extends TestCase
         $this->actingAs($user);
 
         // Attempt to order with insufficient balance
+        // 2 x Rp 30.000 = Rp 60.000 = 30 coin > saldo 10 coin
         $response = $this->postJson('/api/orders', [
             'items' => [
                 [
@@ -123,10 +124,10 @@ class TransactionLockingTest extends TestCase
         ]);
 
         $response->assertStatus(400);
-        $response->assertJsonFragment(['message' => 'Saldo coin']);
+        $this->assertStringContainsString('Saldo coin', $response->json('message'));
 
         $wallet->refresh();
-        $this->assertEquals(50, $wallet->balance);
+        $this->assertEquals(10, $wallet->balance);
     }
 
     public function test_wallet_balance_accurate_after_order()
