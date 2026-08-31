@@ -3,15 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\VoucherResource;
 use App\Models\Voucher;
 use App\Models\Order;
 use App\Models\Booking;
+use App\Models\VoucherClaim;
+use App\Services\VoucherService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class VoucherController extends Controller
 {
+    public function __construct(private readonly VoucherService $voucherService)
+    {
+    }
+
     public function validate(Request $request): JsonResponse
     {
         $request->validate([
@@ -27,27 +34,20 @@ class VoucherController extends Controller
             ]);
         }
 
-        if (!$voucher->isValid()) {
+        $preview = $this->voucherService->preview($request->user(), $voucher, (float) $request->amount);
+
+        if (!$preview['valid']) {
             throw ValidationException::withMessages([
-                'code' => 'Voucher tidak valid atau sudah expired',
+                'code' => $preview['message'],
             ]);
         }
-
-        $userValidation = $voucher->canUseByUser($request->user()->id);
-        if (!$userValidation['valid']) {
-            throw ValidationException::withMessages([
-                'code' => $userValidation['message'],
-            ]);
-        }
-
-        $discount = $voucher->calculateDiscount($request->amount);
 
         return response()->json([
             'valid' => true,
             'voucher_code' => $voucher->code,
-            'discount' => (float) $discount['discount'],
+            'discount' => (float) $preview['discount'],
             'original_amount' => (float) $request->amount,
-            'final_amount' => (float) $discount['final_amount'],
+            'final_amount' => (float) $preview['final_amount'],
             'discount_percentage' => $voucher->discount_type === 'percentage' ? (float) $voucher->discount_value : 0,
         ]);
     }
@@ -70,27 +70,20 @@ class VoucherController extends Controller
             ]);
         }
 
-        $result = $voucher->applyToOrder($order, $request->user()->id);
+        $applied = $this->voucherService->apply($request->user(), $request->voucher_code, (float) $order->total_price);
 
-        if (!$result['valid']) {
-            throw ValidationException::withMessages([
-                'voucher_code' => $result['message'],
-            ]);
-        }
-
-        // Update order with discount
         $order->update([
-            'discount' => $result['discount'],
-            'total_amount' => $result['final_amount'],
-            'voucher_id' => $voucher->id,
+            'discount' => $applied['discount'],
+            'total_amount' => $applied['final_amount'],
+            'voucher_id' => $applied['voucher_id'],
         ]);
 
         return response()->json([
             'message' => 'Voucher berhasil diterapkan',
             'data' => [
-                'discount' => (float) $result['discount'],
-                'final_amount' => (float) $result['final_amount'],
-                'usage_id' => $result['usage_id'],
+                'discount' => (float) $applied['discount'],
+                'final_amount' => (float) $applied['final_amount'],
+                'voucher_code' => $applied['code'],
             ],
         ]);
     }
@@ -113,27 +106,20 @@ class VoucherController extends Controller
             ]);
         }
 
-        $result = $voucher->applyToBooking($booking, $request->user()->id);
+        $applied = $this->voucherService->apply($request->user(), $request->voucher_code, (float) $booking->total_price);
 
-        if (!$result['valid']) {
-            throw ValidationException::withMessages([
-                'voucher_code' => $result['message'],
-            ]);
-        }
-
-        // Update booking with discount
         $booking->update([
-            'discount' => $result['discount'],
-            'total_amount' => $result['final_amount'],
-            'voucher_id' => $voucher->id,
+            'discount' => $applied['discount'],
+            'total_amount' => $applied['final_amount'],
+            'voucher_id' => $applied['voucher_id'],
         ]);
 
         return response()->json([
             'message' => 'Voucher berhasil diterapkan',
             'data' => [
-                'discount' => (float) $result['discount'],
-                'final_amount' => (float) $result['final_amount'],
-                'usage_id' => $result['usage_id'],
+                'discount' => (float) $applied['discount'],
+                'final_amount' => (float) $applied['final_amount'],
+                'voucher_code' => $applied['code'],
             ],
         ]);
     }
@@ -162,5 +148,97 @@ class VoucherController extends Controller
                 'total' => $vouchers->total(),
             ],
         ]);
+    }
+
+    /**
+     * Voucher gratis yang bisa diklaim (tampil di Home).
+     */
+    public function free(Request $request): JsonResponse
+    {
+        $vouchers = Voucher::active()
+            ->where('is_free', true)
+            ->latest('valid_from')
+            ->get()
+            ->filter(fn (Voucher $v) => $v->total_quota === null || $v->used_count < $v->total_quota)
+            ->values();
+
+        return response()->json([
+            'data' => VoucherResource::collection($vouchers),
+        ]);
+    }
+
+    /**
+     * Klaim voucher gratis. Satu user hanya boleh klaim 1x per voucher.
+     */
+    public function claim(Request $request, Voucher $voucher): JsonResponse
+    {
+        if (! $voucher->is_free) {
+            throw ValidationException::withMessages([
+                'voucher_id' => 'Voucher ini bukan voucher gratis.',
+            ]);
+        }
+
+        if (! $voucher->isValid()) {
+            throw ValidationException::withMessages([
+                'voucher_id' => 'Voucher tidak aktif atau sudah kedaluwarsa.',
+            ]);
+        }
+
+        if ($voucher->total_quota && $voucher->used_count >= $voucher->total_quota) {
+            throw ValidationException::withMessages([
+                'voucher_id' => 'Kuota voucher sudah habis.',
+            ]);
+        }
+
+        $exists = VoucherClaim::where('user_id', $request->user()->id)
+            ->where('voucher_id', $voucher->id)
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'voucher_id' => 'Anda sudah memiliki voucher ini.',
+            ]);
+        }
+
+        $claim = VoucherClaim::create([
+            'user_id' => $request->user()->id,
+            'voucher_id' => $voucher->id,
+            'source' => 'free',
+            'status' => 'unused',
+            'claimed_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Voucher berhasil diklaim.',
+            'data' => $this->claimPayload($claim->load('voucher')),
+        ], 201);
+    }
+
+    /**
+     * Semua voucher yang dimiliki user (free + loyalty).
+     */
+    public function myVouchers(Request $request): JsonResponse
+    {
+        $claims = $request->user()->voucherClaims()
+            ->with('voucher')
+            ->latest('claimed_at')
+            ->get();
+
+        return response()->json([
+            'data' => $claims->map(fn (VoucherClaim $claim) => $this->claimPayload($claim)),
+        ]);
+    }
+
+    private function claimPayload(VoucherClaim $claim): array
+    {
+        return [
+            'id' => $claim->id,
+            'voucher_id' => $claim->voucher_id,
+            'source' => $claim->source,
+            'status' => $claim->status,
+            'claimed_at' => $claim->claimed_at?->format('Y-m-d H:i:s'),
+            'used_at' => $claim->used_at?->format('Y-m-d H:i:s'),
+            'voucher' => new VoucherResource($claim->voucher),
+        ];
     }
 }

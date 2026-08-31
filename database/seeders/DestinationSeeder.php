@@ -5,275 +5,191 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use App\Models\User;
 
 class DestinationSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. BUAT KATEGORI DULU
-        $categories = [
-            ['name' => 'Pantai', 'slug' => 'pantai', 'icon' => '🏖️'],
-            ['name' => 'Pegunungan', 'slug' => 'pegunungan', 'icon' => '🏔️'],
-            ['name' => 'Budaya', 'slug' => 'budaya', 'icon' => '🏛️'],
-            ['name' => 'Air Terjun', 'slug' => 'air-terjun', 'icon' => '💧'],
+        $this->command->info('🏖️ Membuat 50+ destinasi Jawa Timur...');
+
+        $now = now();
+
+        $managerId = DB::table('users')->where('role', 'manager')->first()?->id ?? 1;
+
+        // Ensure categories exist
+        $cats = [
+            ['name' => 'Pantai',         'slug' => 'pantai',         'icon' => '🏖️'],
+            ['name' => 'Pegunungan',     'slug' => 'pegunungan',     'icon' => '🏔️'],
+            ['name' => 'Budaya',         'slug' => 'budaya',         'icon' => '🏛️'],
+            ['name' => 'Air Terjun',     'slug' => 'air-terjun',     'icon' => '💧'],
             ['name' => 'Taman Nasional', 'slug' => 'taman-nasional', 'icon' => '🌿'],
+            ['name' => 'Kuliner',        'slug' => 'kuliner',        'icon' => '🍜'],
+            ['name' => 'Religi',         'slug' => 'religi',         'icon' => '🕌'],
+            ['name' => 'Alam',           'slug' => 'alam',           'icon' => '🌳'],
         ];
-
-        foreach ($categories as $cat) {
-            $cat['created_at'] = now();
-            $cat['updated_at'] = now();
-            DB::table('destination_categories')->insert($cat);
+        foreach ($cats as $c) {
+            DB::table('destination_categories')->insertOrIgnore(array_merge($c, [
+                'created_at' => $now, 'updated_at' => $now,
+            ]));
         }
 
-        // 2. BUAT FASILITAS
-        $facilities = [
-            ['name' => 'Toilet', 'icon' => '🚻'],
-            ['name' => 'Parkir', 'icon' => '🅿️'],
-            ['name' => 'Mushola', 'icon' => '🕌'],
-            ['name' => 'Warung Makan', 'icon' => '🍽️'],
-            ['name' => 'Spot Foto', 'icon' => '📸'],
-            ['name' => 'Gazebo', 'icon' => '🏠'],
-            ['name' => 'Penginapan', 'icon' => '🏨'],
-            ['name' => 'Rental Alat', 'icon' => '🤿'],
-        ];
-
-        foreach ($facilities as $fac) {
-            $fac['created_at'] = now();
-            $fac['updated_at'] = now();
-            DB::table('facilities')->insert($fac);
+        $catMap = [];
+        foreach ($cats as $c) {
+            $catMap[$c['slug']] = DB::table('destination_categories')->where('slug', $c['slug'])->first()->id;
         }
 
-        // 3. BUAT DESTINASI
+        $img = [
+            'beach'  => 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
+            'mt'     => 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80',
+            'temple' => 'https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?w=800&q=80',
+            'water'  => 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80',
+            'forest' => 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80',
+            'city'   => 'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&q=80',
+            'food'   => 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80',
+            'rice'   => 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80',
+            'sun'    => 'https://images.unsplash.com/photo-1509233725247-49e657c54213?w=800&q=80',
+            'lake'   => 'https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=800&q=80',
+            'travel' => 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&q=80',
+            'sunset' => 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=800&q=80',
+        ];
+
         $destinations = [
-            [
-                'destination_category_id' => 1,
-                'name' => 'Pantai Kuta Lombok',
-                'slug' => 'pantai-kuta-lombok',
-                'description' => 'Pantai Kuta Lombok terkenal dengan pasir putihnya yang memukau dan ombak yang cocok untuk surfing. Pemandangan sunset di sini merupakan salah satu yang terbaik di Indonesia.',
-                'address' => 'Kuta, Lombok Tengah, Nusa Tenggara Barat',
-                'latitude' => -8.9023,
-                'longitude' => 116.2870,
-                'open_hour' => '06:00',
-                'close_hour' => '18:00',
-                'ticket_price' => 15000.00,
-                'estimated_cost' => 200000.00,
-                'phone' => '0370123456',
-                'status' => 'published',
-            ],
-            [
-                'destination_category_id' => 1,
-                'name' => 'Pantai Pink Lombok',
-                'slug' => 'pantai-pink-lombok',
-                'description' => 'Salah satu dari tujuh pantai berpasir pink di dunia. Perpaduan pasir merah muda dengan air laut biru jernih menciptakan pemandangan yang sangat eksotis.',
-                'address' => 'Desa Tangsi, Jerowaru, Lombok Timur',
-                'latitude' => -8.8500,
-                'longitude' => 116.5500,
-                'open_hour' => '07:00',
-                'close_hour' => '17:00',
-                'ticket_price' => 25000.00,
-                'estimated_cost' => 250000.00,
-                'phone' => '0370654321',
-                'status' => 'published',
-            ],
-            [
-                'destination_category_id' => 2,
-                'name' => 'Gunung Rinjani',
-                'slug' => 'gunung-rinjani',
-                'description' => 'Gunung berapi aktif setinggi 3.726 meter ini merupakan gunung tertinggi kedua di Indonesia. Mendaki ke puncaknya dan melihat Danau Segara Anak adalah pengalaman tak terlupakan.',
-                'address' => 'Sembalun, Lombok Timur, NTB',
-                'latitude' => -8.4117,
-                'longitude' => 116.4575,
-                'open_hour' => '05:00',
-                'close_hour' => '17:00',
-                'ticket_price' => 150000.00,
-                'estimated_cost' => 1500000.00,
-                'phone' => '0370789101',
-                'status' => 'published',
-            ],
-            [
-                'destination_category_id' => 3,
-                'name' => 'Desa Sade Lombok',
-                'slug' => 'desa-sade-lombok',
-                'description' => 'Desa adat Sasak yang masih mempertahankan budaya dan arsitektur tradisional. Rumah-rumahnya beratap ilalang dan lantai tanah liat, menunjukkan kearifan lokal suku Sasak.',
-                'address' => 'Rembitan, Pujut, Lombok Tengah',
-                'latitude' => -8.8600,
-                'longitude' => 116.2800,
-                'open_hour' => '08:00',
-                'close_hour' => '17:00',
-                'ticket_price' => 10000.00,
-                'estimated_cost' => 100000.00,
-                'phone' => '0370111222',
-                'status' => 'published',
-            ],
-            [
-                'destination_category_id' => 1,
-                'name' => 'Pantai Tanjung Aan',
-                'slug' => 'pantai-tanjung-aan',
-                'description' => 'Dikenal dengan butiran pasirnya yang seperti merica (nyiur), pantai ini memiliki dua teluk dengan karakteristik air laut yang berbeda.',
-                'address' => 'Tanjung Aan, Lombok Tengah, NTB',
-                'latitude' => -8.9100,
-                'longitude' => 116.3000,
-                'open_hour' => '06:00',
-                'close_hour' => '18:00',
-                'ticket_price' => 10000.00,
-                'estimated_cost' => 150000.00,
-                'phone' => '0370333444',
-                'status' => 'published',
-            ],
+            // Malang
+            ['cat' => 'pantai',   'name' => 'Pantai Sendang Biru',    'slug' => 'pantai-sendang-biru',    'lat' => -8.4453, 'lng' => 114.2581, 'price' => 10000,  'est' => 150000,  'img' => 'beach'],
+            ['cat' => 'pantai',   'name' => 'Pantai Bajul Mati',      'slug' => 'pantai-bajul-mati',      'lat' => -8.4106, 'lng' => 114.2267, 'price' => 10000,  'est' => 120000,  'img' => 'beach'],
+            ['cat' => 'pantai',   'name' => 'Pantai Goa Cina',        'slug' => 'pantai-goa-cina',        'lat' => -8.3956, 'lng' => 114.2419, 'price' => 5000,   'est' => 100000,  'img' => 'beach'],
+            ['cat' => 'pantai',   'name' => 'Pantai Balekambang',     'slug' => 'pantai-balekambang',     'lat' => -8.3653, 'lng' => 114.2175, 'price' => 10000,  'est' => 100000,  'img' => 'beach'],
+            ['cat' => 'pantai',   'name' => 'Pantai Ngliyep',         'slug' => 'pantai-ngliyep',         'lat' => -8.3844, 'lng' => 114.1864, 'price' => 10000,  'est' => 100000,  'img' => 'beach'],
+            ['cat' => 'air-terjun','name' => 'Coban Rondo',           'slug' => 'coban-rondo',            'lat' => -7.9167, 'lng' => 112.4833, 'price' => 20000,  'est' => 80000,   'img' => 'water'],
+            ['cat' => 'air-terjun','name' => 'Coban Talun',           'slug' => 'coban-talun',            'lat' => -7.8500, 'lng' => 112.5167, 'price' => 15000,  'est' => 75000,   'img' => 'water'],
+            ['cat' => 'air-terjun','name' => 'Coban Rais',            'slug' => 'coban-rais',             'lat' => -7.9333, 'lng' => 112.5500, 'price' => 15000,  'est' => 80000,   'img' => 'water'],
+            ['cat' => 'alam',     'name' => 'Taman Selecta',          'slug' => 'taman-selecta',          'lat' => -7.9167, 'lng' => 112.5500, 'price' => 40000,  'est' => 150000,  'img' => 'forest'],
+            ['cat' => 'alam',     'name' => 'Jatim Park 2',           'slug' => 'jatim-park-2',           'lat' => -7.8833, 'lng' => 112.5333, 'price' => 100000, 'est' => 200000,  'img' => 'travel'],
+            ['cat' => 'alam',     'name' => 'Batu Night Spectacular', 'slug' => 'batu-night-spectacular', 'lat' => -7.8833, 'lng' => 112.5333, 'price' => 100000, 'est' => 200000,  'img' => 'city'],
+            ['cat' => 'kuliner',  'name' => 'Jalan Alun-Alun Batu',   'slug' => 'jalan-alun-alun-batu',   'lat' => -7.8764, 'lng' => 112.5241, 'price' => 0,      'est' => 100000,  'img' => 'food'],
+
+            // Bromo & Tengger
+            ['cat' => 'pegunungan','name' => 'Gunung Bromo',          'slug' => 'gunung-bromo',           'lat' => -7.9425, 'lng' => 112.9530, 'price' => 220000, 'est' => 500000,  'img' => 'mt'],
+            ['cat' => 'pegunungan','name' => 'Bukit Penanjakan',      'slug' => 'bukit-penanjakan',       'lat' => -7.9219, 'lng' => 112.9422, 'price' => 220000, 'est' => 350000,  'img' => 'mt'],
+            ['cat' => 'pegunungan','name' => 'Savanna Bromo',         'slug' => 'savanna-bromo',          'lat' => -7.9200, 'lng' => 112.9700, 'price' => 220000, 'est' => 400000,  'img' => 'rice'],
+            ['cat' => 'alam',     'name' => 'Lautan Pasir Bromo',     'slug' => 'lautan-pasir-bromo',     'lat' => -7.9400, 'lng' => 112.9600, 'price' => 220000, 'est' => 350000,  'img' => 'sun'],
+
+            // Surabaya
+            ['cat' => 'budaya',   'name' => 'Tugu Pahlawan',          'slug' => 'tugu-pahlawan',          'lat' => -7.2452, 'lng' => 112.7360, 'price' => 0,      'est' => 50000,   'img' => 'city'],
+            ['cat' => 'budaya',   'name' => 'Cagar Budaya Kayun',     'slug' => 'cagar-budaya-kayun',     'lat' => -7.2892, 'lng' => 112.7352, 'price' => 0,      'est' => 30000,   'img' => 'temple'],
+            ['cat' => 'kuliner',  'name' => 'Pasar Atom',             'slug' => 'pasar-atom',             'lat' => -7.2454, 'lng' => 112.7380, 'price' => 0,      'est' => 200000,  'img' => 'city'],
+            ['cat' => 'kuliner',  'name' => 'Kenjeran Park',          'slug' => 'kenjeran-park',          'lat' => -7.2254, 'lng' => 112.7530, 'price' => 10000,  'est' => 150000,  'img' => 'beach'],
+            ['cat' => 'alam',     'name' => 'Surabaya Zoo',           'slug' => 'surabaya-zoo',           'lat' => -7.2987, 'lng' => 112.7260, 'price' => 50000,  'est' => 150000,  'img' => 'forest'],
+
+            // Banyuwangi
+            ['cat' => 'pantai',   'name' => 'Pantai Merah (Red Island)','slug' => 'pantai-merah',         'lat' => -8.3500, 'lng' => 114.0833, 'price' => 10000,  'est' => 150000,  'img' => 'sunset'],
+            ['cat' => 'pantai',   'name' => 'Pantai Plengkung',       'slug' => 'pantai-plengkung',       'lat' => -8.3167, 'lng' => 114.3333, 'price' => 15000,  'est' => 200000,  'img' => 'beach'],
+            ['cat' => 'pantai',   'name' => 'Pantai Sukamade',        'slug' => 'pantai-sukamade',        'lat' => -8.2167, 'lng' => 114.0833, 'price' => 25000,  'est' => 300000,  'img' => 'beach'],
+            ['cat' => 'taman-nasional','name' => 'Taman Nasional Baluran','slug' => 'taman-nasional-baluran','lat' => -7.8500, 'lng' => 114.3500, 'price' => 200000, 'est' => 500000,  'img' => 'rice'],
+            ['cat' => 'pegunungan','name' => 'Gunung Ijen',           'slug' => 'gunung-ijen',            'lat' => -8.0583, 'lng' => 114.2417, 'price' => 100000, 'est' => 350000,  'img' => 'mt'],
+            ['cat' => 'pegunungan','name' => 'Kawah Ijen Blue Fire',  'slug' => 'kawah-ijen-blue-fire',   'lat' => -8.0583, 'lng' => 114.2417, 'price' => 100000, 'est' => 500000,  'img' => 'mt'],
+
+            // Kediri
+            ['cat' => 'budaya',   'name' => 'Candi Penataran',        'slug' => 'candi-penataran',        'lat' => -8.0167, 'lng' => 112.1000, 'price' => 15000,  'est' => 75000,   'img' => 'temple'],
+            ['cat' => 'alam',     'name' => 'Kediri Tea Plantation',  'slug' => 'kediri-tea-plantation',  'lat' => -7.8500, 'lng' => 112.0000, 'price' => 20000,  'est' => 100000,  'img' => 'rice'],
+            ['cat' => 'kuliner',  'name' => 'Tahu Porong Kediri',     'slug' => 'tahu-porong-kediri',     'lat' => -7.9667, 'lng' => 112.0167, 'price' => 0,      'est' => 50000,   'img' => 'food'],
+
+            // Blitar
+            ['cat' => 'budaya',   'name' => 'Makam Bung Karno',       'slug' => 'makam-bung-karno',       'lat' => -8.0983, 'lng' => 112.1681, 'price' => 0,      'est' => 50000,   'img' => 'city'],
+            ['cat' => 'pantai',   'name' => 'Pantai Serang',          'slug' => 'pantai-serang-blitar',   'lat' => -8.2167, 'lng' => 112.3333, 'price' => 5000,   'est' => 80000,   'img' => 'beach'],
+            ['cat' => 'pegunungan','name' => 'Gunung Kelud',          'slug' => 'gunung-kelud',           'lat' => -7.9333, 'lng' => 112.3083, 'price' => 50000,  'est' => 200000,  'img' => 'mt'],
+
+            // Tulungagung
+            ['cat' => 'pantai',   'name' => 'Pantai Popoh',           'slug' => 'pantai-popoh',           'lat' => -8.2333, 'lng' => 111.8667, 'price' => 5000,   'est' => 80000,   'img' => 'beach'],
+            ['cat' => 'pantai',   'name' => 'Pantai Sidem',           'slug' => 'pantai-sidem',           'lat' => -8.2167, 'lng' => 111.8500, 'price' => 5000,   'est' => 75000,   'img' => 'beach'],
+            ['cat' => 'alam',     'name' => 'Gua Maharani',           'slug' => 'gua-maharani',           'lat' => -8.2500, 'lng' => 111.8833, 'price' => 15000,  'est' => 80000,   'img' => 'forest'],
+
+            // Trenggalek
+            ['cat' => 'pantai',   'name' => 'Pantai Watu Lanyar',     'slug' => 'pantai-watu-lanyar',     'lat' => -8.0833, 'lng' => 111.6667, 'price' => 5000,   'est' => 75000,   'img' => 'beach'],
+            ['cat' => 'air-terjun','name' => 'Curug Grobyok',         'slug' => 'curug-grobyok',          'lat' => -8.1333, 'lng' => 111.7000, 'price' => 10000,  'est' => 80000,   'img' => 'water'],
+
+            // Pacitan
+            ['cat' => 'pantai',   'name' => 'Pantai Klayar',          'slug' => 'pantai-klayar',          'lat' => -8.1667, 'lng' => 110.9833, 'price' => 10000,  'est' => 100000,  'img' => 'beach'],
+            ['cat' => 'pantai',   'name' => 'Pantai Watu Karung',     'slug' => 'pantai-watu-karung',     'lat' => -8.1833, 'lng' => 110.9500, 'price' => 5000,   'est' => 80000,   'img' => 'beach'],
+            ['cat' => 'pegunungan','name' => 'Gua Gong',              'slug' => 'gua-gong',               'lat' => -8.1500, 'lng' => 111.0167, 'price' => 20000,  'est' => 80000,   'img' => 'forest'],
+
+            // Madiun
+            ['cat' => 'budaya',   'name' => 'Alun-Alun Madiun',       'slug' => 'alun-alun-madiun',       'lat' => -7.6300, 'lng' => 111.5230, 'price' => 0,      'est' => 50000,   'img' => 'city'],
+            ['cat' => 'kuliner',  'name' => 'Bakso Madiun',           'slug' => 'bakso-madiun',           'lat' => -7.6300, 'lng' => 111.5230, 'price' => 0,      'est' => 50000,   'img' => 'food'],
+
+            // Nganjuk
+            ['cat' => 'air-terjun','name' => 'Air Terjun Selo Pirang','slug' => 'air-terjun-selo-pirang', 'lat' => -7.7333, 'lng' => 111.8500, 'price' => 10000,  'est' => 80000,   'img' => 'water'],
+
+            // Jombang
+            ['cat' => 'religi',   'name' => 'Taman Mini Jatim Park',  'slug' => 'taman-mini-jatim-park',  'lat' => -7.5500, 'lng' => 112.2333, 'price' => 50000,  'est' => 150000,  'img' => 'temple'],
+
+            // Mojokerto
+            ['cat' => 'budaya',   'name' => 'Candi Jabung',           'slug' => 'candi-jabung',           'lat' => -7.5000, 'lng' => 112.4167, 'price' => 10000,  'est' => 75000,   'img' => 'temple'],
+            ['cat' => 'budaya',   'name' => 'Candi Tikus',            'slug' => 'candi-tikus',            'lat' => -7.5167, 'lng' => 112.4333, 'price' => 10000,  'est' => 75000,   'img' => 'temple'],
+
+            // Sidoarjo
+            ['cat' => 'alam',     'name' => ' Lumpur Lapindo',         'slug' => 'lumpur-lapindo',         'lat' => -7.4333, 'lng' => 112.6500, 'price' => 25000,  'est' => 100000,  'img' => 'sun'],
+
+            // Gresik
+            ['cat' => 'religi',   'name' => 'Makam Sunan Giri',       'slug' => 'makam-sunan-giri',       'lat' => -7.1333, 'lng' => 112.6333, 'price' => 5000,   'est' => 75000,   'img' => 'temple'],
+
+            // Lamongan
+            ['cat' => 'kuliner',  'name' => 'Soto Lamongan',          'slug' => 'soto-lamongan',          'lat' => -7.1167, 'lng' => 112.3167, 'price' => 0,      'est' => 50000,   'img' => 'food'],
+
+            // Bojonegoro
+            ['cat' => 'alam',     'name' => 'Bengawan Solo',           'slug' => 'bengawan-solo',          'lat' => -7.1500, 'lng' => 111.8833, 'price' => 0,      'est' => 50000,   'img' => 'water'],
         ];
 
-        $destinationIds = [];
-        foreach ($destinations as $dest) {
-            $dest['manager_id'] = null;
-            $dest['created_at'] = now();
-            $dest['updated_at'] = now();
-            $destinationIds[] = DB::table('destinations')->insertGetId($dest);
-        }
+        $created = 0;
 
-        // 4. BUAT GALLERY DESTINASI
-        $galleryImages = [
-            'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
-            'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&q=80',
-            'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80',
-            'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
-            'https://images.unsplash.com/photo-1468413253725-0d5181091126?w=800&q=80',
-        ];
+        foreach ($destinations as $d) {
+            if (DB::table('destinations')->where('slug', $d['slug'])->exists()) continue;
 
-        foreach ($destinationIds as $index => $destId) {
-            for ($i = 0; $i < 3; $i++) {
+            $did = DB::table('destinations')->insertGetId([
+                'destination_category_id' => $catMap[$d['cat']] ?? 1,
+                'manager_id'             => $managerId,
+                'name'                   => $d['name'],
+                'slug'                   => $d['slug'],
+                'description'            => "{$d['name']} adalah destinasi wisata terbaik di Jawa Timur yang wajib dikunjungi. Nikmati pengalaman tak terlupakan bersama keluarga dan teman.",
+                'address'                => 'Jawa Timur, Indonesia',
+                'latitude'               => $d['lat'],
+                'longitude'              => $d['lng'],
+                'open_hour'              => '07:00',
+                'close_hour'             => '17:00',
+                'ticket_price'           => $d['price'],
+                'estimated_cost'         => $d['est'],
+                'phone'                  => '0812' . rand(10000000, 99999999),
+                'status'                 => 'published',
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // 2 galleries per destination
+            foreach ([0, 1] as $i) {
                 DB::table('destination_galleries')->insert([
-                    'destination_id' => $destId,
-                    'image' => $galleryImages[$index],
-                    'caption' => 'Foto ' . ($i + 1) . ' - ' . $destinations[$index]['name'],
-                    'sort_order' => $i,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'destination_id' => $did,
+                    'image'          => $img[$d['img']] ?? $img['beach'],
+                    'caption'        => "{$d['name']} — Foto " . ($i + 1),
+                    'sort_order'     => $i,
+                    'created_at'     => $now,
+                    'updated_at'     => $now,
                 ]);
             }
-        }
 
-        // 5. ATTACH FASILITAS
-        $facilityIds = DB::table('facilities')->pluck('id');
-        
-        foreach ($destinationIds as $destId) {
-            $randomFacilities = $facilityIds->random(rand(3, 5));
-            foreach ($randomFacilities as $facId) {
-                DB::table('destination_facility')->insert([
-                    'destination_id' => $destId,
-                    'facility_id' => $facId,
-                ]);
+            // Random facilities
+            $facIds = DB::table('facilities')->pluck('id');
+            if ($facIds->isNotEmpty()) {
+                foreach ($facIds->random(rand(2, 4)) as $facId) {
+                    DB::table('destination_facility')->insertOrIgnore([
+                        'destination_id' => $did,
+                        'facility_id'    => $facId,
+                    ]);
+                }
             }
+
+            $created++;
         }
 
-        // ==========================================
-        // 6. BUAT DATA EVENT & EVENT GALLERY
-        // ==========================================
-        
-        // Ambil ID User pertama sebagai pembuat event (Admin)
-       $creator = User::firstOrCreate(
-            ['email' => 'admin@ejt.com'],
-            [
-                'name' => 'Admin EJT',
-                'password' => bcrypt('password123'), // Ganti kalau mau
-            ]
-        );
-        $creatorId = $creator->id;
-
-        // Gambar Unsplash khusus untuk Event (Festival, Budaya, Alam)
-        $eventImages = [
-            'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&q=80', // Festival budaya
-            'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80', // Konser musik
-            'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&q=80', // Camping/Hiking
-            'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80', // Pesta kembang api
-            'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80', // Festival makanan
-            'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80', // Road trip/Jeep
-        ];
-
-        // Data Event (Diambil dari destinasi yang sudah ada)
-        $events = [
-            [
-                'destination_id' => $destinationIds[0], // Pantai Kuta
-                'title' => 'Festival Surfing Kuta Lombok 2024',
-                'slug' => 'festival-surfing-kuta-lombok-2024',
-                'description' => "Event tahunan yang mempertemukan peselancar profesional dari seluruh dunia. Selain kompetisi, ada juga workshop surfing untuk pemula, live music di pinggir pantai, dan bazaar kuliner laut lokal. Saksikan keindahan ombak Kuta yang memukau sambil menikmati suasana festival yang meriah!",
-                'start_date' => now()->addDays(15),
-                'end_date' => now()->addDays(18),
-                'location' => 'Pantai Kuta, Lombok Tengah',
-                'image' => $eventImages[0],
-                'status' => 'upcoming',
-            ],
-            [
-                'destination_id' => $destinationIds[1], // Pantai Pink
-                'title' => 'Pink Beach Marathon',
-                'slug' => 'pink-beach-marathon',
-                'description' => "Lari maraton pertama di atas pasir pink! Tersedia kategori 5K, 10K, dan Half Marathon. Semua jalur menampilkan pemandangan laut biru dan hamparan pasir merah muda yang langka. Peserta juga mendapatkan medali eksklusif berbentuk kelopak pink dan goodie box spesial.",
-                'start_date' => now()->addMonths(2),
-                'end_date' => now()->addMonths(2)->addHours(8),
-                'location' => 'Pantai Pink, Lombok Timur',
-                'image' => $eventImages[2],
-                'status' => 'upcoming',
-            ],
-            [
-                'destination_id' => $destinationIds[2], // Rinjani
-                'title' => 'Rinjani Summit Expedition',
-                'slug' => 'rinjani-summit-expedition',
-                'description' => "Ekspedisi terbuka untuk pendaki pemula dan menengah menuju puncak Gunung Rinjani. Fasilitas termasuk porter berpengalaman, peralatan camping lengkap, dan tim medis. Kita akan bermalam di tepi Danau Segara Anak dan menyaksikan sunrise spektakuler dari puncak pada esok harinya.",
-                'start_date' => now()->subDays(5), // Sudah lewat (Finished)
-                'end_date' => now()->subDays(2),
-                'location' => 'Sembalun, Lombok Timur',
-                'image' => $eventImages[2],
-                'status' => 'finished',
-            ],
-            [
-                'destination_id' => $destinationIds[3], // Desa Sade
-                'title' => 'Festival Budaya Sasak Sade',
-                'slug' => 'festival-budaya-sasak-sade',
-                'description' => "Rasakan kehidupan autentik suku Sasak! Event ini menampilkan tarian tradisional, prosesi tenun kain ikat, upacara adat, dan kuliner khas Lombok yang bisa kamu cicipi langsung di halaman rumah warga. Tur ini dipandu langsung oleh tetua adat setempat.",
-                'start_date' => now(), // Hari ini (Ongoing)
-                'end_date' => now()->addDays(3),
-                'location' => 'Desa Sade, Rembitan',
-                'image' => $eventImages[4],
-                'status' => 'ongoing',
-            ],
-            [
-                'destination_id' => $destinationIds[4], // Tanjung Aan
-                'title' => 'Tanjung Aan Beach Camp & Music',
-                'slug' => 'tanjung-aan-beach-camp-music',
-                'description' => "Camping mewah di tepi pantai ditemani alunan musik akustik indie. Tiket termasuk tenda glamping untuk 2 orang, BBQ dinner, snack box, dan akses free flow minuman. Acara dimulai dari sunset hingga larut malam dengan bintang-bintang sebagai langit atap kita.",
-                'start_date' => now()->addDays(30),
-                'end_date' => now()->addDays(32),
-                'location' => 'Pantai Tanjung Aan',
-                'image' => $eventImages[1],
-                'status' => 'upcoming',
-            ],
-        ];
-
-        $eventIds = [];
-        foreach ($events as $eventData) {
-            $eventData['created_by'] = $creatorId;
-            $eventData['created_at'] = now();
-            $eventData['updated_at'] = now();
-            
-            $eventIds[] = DB::table('events')->insertGetId($eventData);
-        }
-
-        // Buat Galeri untuk Setiap Event (3-5 foto per event)
-        foreach ($eventIds as $index => $eventId) {
-            // Acak gambar dari array eventImages untuk gallery
-            $shuffledImages = collect($eventImages)->shuffle()->take(rand(3, 5));
-            
-            foreach ($shuffledImages as $i => $img) {
-                DB::table('event_galleries')->insert([
-                    'event_id' => $eventId,
-                    'image' => $img,
-                    'caption' => "Dokumentasi {$events[$index]['title']} - Bagian " . ($i + 1),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-
-        $this->command->info('✅ Destinasi, Event, beserta galerinya berhasil dibuat!');
+        $this->command->info("  ✅ {$created} destinasi baru");
     }
 }

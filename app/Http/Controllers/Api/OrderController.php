@@ -13,6 +13,7 @@ use App\Models\Wallet;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\ProductStatus;
+use App\Services\VoucherService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,9 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class OrderController extends Controller
 {
+    public function __construct(private readonly VoucherService $voucherService)
+    {
+    }
     public function index(Request $request): JsonResponse
 {
     $orders = Order::with(['items', 'umkm'])
@@ -59,6 +63,7 @@ class OrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'payment_method' => 'required|in:coin,cash_on_pickup',
             'notes' => 'nullable|string|max:500',
+            'voucher_code' => 'nullable|string|max:64',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -95,9 +100,20 @@ class OrderController extends Controller
             }
 
             // 2. Proses Pembayaran Coin
+            $discount = 0;
+            $finalAmount = $totalPrice;
+            $voucherId = null;
             $coinAmount = 0;
             $coinToRupiahRate = 2000; // 1 coin = Rp 2000
             $rupiahEquivalent = 0;
+
+            // Terapkan voucher yang sudah diklaim user (opsional)
+            if ($request->filled('voucher_code')) {
+                $applied = $this->voucherService->apply($user, $request->voucher_code, (float) $totalPrice);
+                $discount = $applied['discount'];
+                $finalAmount = $applied['final_amount'];
+                $voucherId = $applied['voucher_id'];
+            }
 
             if ($paymentMethod === PaymentMethod::COIN) {
     if (!$wallet) {
@@ -108,7 +124,7 @@ class OrderController extends Controller
     // PENTING: kunci wallet milik user ini, bukan row wallet pertama di tabel
     $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
 
-    $coinAmount = ceil($totalPrice / $coinToRupiahRate * 10000) / 10000;
+    $coinAmount = ceil($finalAmount / $coinToRupiahRate * 10000) / 10000;
     
     if (!$wallet->hasSufficientBalance($coinAmount)) {
         abort(400, "Saldo coin tidak mencukupi. Dibutuhkan: {$coinAmount} Coin.");
@@ -117,7 +133,7 @@ class OrderController extends Controller
                 // Potong saldo
                 $wallet->debit($coinAmount, "Pembayaran Order Pickup", $order ?? null); 
                 // Catatan: $order masih null di sini, tapi kita akan update reference_id di bawah setelah order dibuat
-                $rupiahEquivalent = $totalPrice;
+                $rupiahEquivalent = $finalAmount;
             }
 
             // 3. Buat Order
@@ -125,6 +141,9 @@ class OrderController extends Controller
                 'user_id' => $user->id,
                 'umkm_id' => $orderItemsData[0]['product_id'] ? Product::find($orderItemsData[0]['product_id'])->umkm_id : null,
                 'total_price' => $totalPrice,
+                'voucher_id' => $voucherId,
+                'discount' => $discount,
+                'total_amount' => $finalAmount,
                 'status' => $paymentMethod === PaymentMethod::COIN ? OrderStatus::PAID : OrderStatus::PENDING,
                 'payment_method' => $paymentMethod,
                 'coin_amount' => $coinAmount,
@@ -176,6 +195,9 @@ class OrderController extends Controller
                     ],
                 ]);
             }
+
+            // Notifikasi ke owner UMKM
+            Notification::createOrderReceived($order);
 
             return response()->json([
                 'message' => 'Pesanan berhasil dibuat!',

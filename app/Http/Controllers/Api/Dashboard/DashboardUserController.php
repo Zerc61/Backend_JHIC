@@ -67,7 +67,7 @@ class DashboardUserController extends Controller
                     ->select('id', 'hotel_id', 'price_per_night', 'status'),
             ])
             ->inRandomOrder()
-            ->take(3)
+            ->take(4)
             ->get();
 
         // 4. DESTINATIONS
@@ -83,7 +83,7 @@ class DashboardUserController extends Controller
             ->with('destination')
             ->where('status', EventStatus::UPCOMING)
             ->orderBy('start_date', 'asc')
-            ->take(3)
+            ->take(4)
             ->get();
 
         // 6. REKOMENDASI UMKM ← BARU

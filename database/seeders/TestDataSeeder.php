@@ -53,12 +53,12 @@ class TestDataSeeder extends Seeder
             'lobby_1' => 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80',
 
             // Transportasi
-            'car_1'    => 'https://images.unsplash.com/photo-1549317661-bd32c8ce0afa?w=800&q=80',
+            'car_1'    => 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=800&q=80',
             'car_2'    => 'https://images.unsplash.com/photo-1449965408869-ebd13bc9e5a8?w=800&q=80',
-            'bus_1'    => 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80',
+            'bus_1'    => 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
             'bus_2'    => 'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=800&q=80',
             'scooter_1' => 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=800&q=80',
-            'scooter_2' => 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80',
+            'scooter_2' => 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80',
 
             // Paket Wisata / Landscape
             'travel_1' => 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&q=80',
@@ -75,7 +75,7 @@ class TestDataSeeder extends Seeder
 
             // Kerajinan / Oleh-oleh
             'craft_1' => 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
-            'craft_2' => 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80',
+            'craft_2' => 'https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800&q=80',
             'craft_3' => 'https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800&q=80',
 
             // Event

@@ -19,6 +19,8 @@ class CoinTransaction extends Model
         'description',
         'reference_type',
         'reference_id',
+        'expires_at',
+        'is_expired',
     ];
 
     protected function casts(): array
@@ -28,6 +30,8 @@ class CoinTransaction extends Model
             'balance_before' => 'decimal:4',
             'balance_after' => 'decimal:4',
             'type' => CoinTransactionType::class,
+            'expires_at' => 'datetime',
+            'is_expired' => 'boolean',
         ];
     }
 

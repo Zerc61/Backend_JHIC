@@ -17,6 +17,8 @@ class UserResource extends JsonResource
         'avatar' => $this->avatar ? url("storage/{$this->avatar}") : null,
         'role' => $this->role->value,
         'status' => $this->status->value,
+        'loyalty_tier' => $this->loyalty_tier ?? 'bronze',
+        'referral_code' => $this->referral_code,
         'wallet' => $this->whenLoaded('wallet', fn() => [
             'balance' => (float) $this->wallet->balance,
         ]),

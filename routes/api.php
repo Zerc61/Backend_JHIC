@@ -8,14 +8,19 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\LoyaltyController;
+use App\Http\Controllers\Api\DailyRewardController;
+use App\Http\Controllers\Api\QuestController;
 use App\Http\Controllers\Api\RefundController;
 use App\Http\Controllers\Api\VoucherController;
+use App\Http\Controllers\Api\Admin\AdminVoucherController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\TripPlanController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\Dashboard\DashboardUmkmController;
 use App\Http\Controllers\Api\Dashboard\DashboardAdminController;
 use App\Http\Controllers\Api\HotelController;
@@ -75,6 +80,7 @@ Route::get('/destinations/{slug}', [DestinationController::class, 'show']);
 
 // UMKM
 Route::get('/umkm-categories', [UmkmController::class, 'categories']);
+Route::get('/umkms/populer', [UmkmController::class, 'popular']);
 Route::get('/destinations/{destinationSlug}/umkms', [UmkmController::class, 'byDestination']);
 Route::get('/umkms/{slug}', [UmkmController::class, 'show']);
 Route::get('/umkms/{umkmSlug}/products', [ProductController::class, 'byUmkm']);
@@ -86,6 +92,13 @@ Route::get('/events/{event:slug}', [EventController::class, 'show']);
 
 // Reviews (publik bisa baca)
 Route::get('/reviews', [ReviewController::class, 'index']);
+
+// Itinerary share (publik tanpa auth, diakses lewat token)
+Route::get('/shared/trip/{token}', [TripPlanController::class, 'sharedView']);
+// Wishlist share (publik tanpa auth, diakses lewat token)
+Route::get('/shared/wishlist/{token}', [WishlistController::class, 'sharedView']);
+// Unified search (publik)
+Route::get('/search', [SearchController::class, '__invoke']);
 
 // ===== FITUR BARU (PUBLIC) =====
 
@@ -111,6 +124,7 @@ Route::get('/transportations/{slug}', [TransportationController::class, 'show'])
 
 // Vouchers (Public list)
 Route::get('/vouchers', [VoucherController::class, 'list']);
+Route::get('/vouchers/free', [VoucherController::class, 'free']);
 
 // Webhook Midtrans (Public, but with signature verification)
 Route::post('/midtrans/notification', [WalletController::class, 'handleMidtransNotification']);
@@ -147,26 +161,68 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/wallet/top-up', [WalletController::class, 'requestTopUp']);
     Route::get('/wallet/check-status/{orderId}', [WalletController::class, 'checkTopUpStatus']);
 
+    // Loyalty EJTCoin
+    Route::get('/loyalty/status', [LoyaltyController::class, 'status']);
+    Route::get('/loyalty/history', [LoyaltyController::class, 'history']);
+    Route::post('/loyalty/redeem-voucher', [LoyaltyController::class, 'redeemVoucher']);
+
+    // Daily Streak & Quest
+    Route::get('/daily/status', [DailyRewardController::class, 'status']);
+    Route::post('/daily/claim', [DailyRewardController::class, 'claim']);
+    Route::get('/quests', [QuestController::class, 'index']);
+    Route::post('/quests/claim', [QuestController::class, 'claim']);
+
     // Webhook Simulation (khusus local/testing, milik user yang login)
     if (app()->environment(['local', 'testing'])) {
         Route::post('wallet/simulate-webhook/{orderId}', [WalletController::class, 'simulateWebhook']);
     }
 
-    // Wishlist
-   Route::get('/wishlists', [WishlistController::class, 'index']);
+    // Wishlist (legacy destino — Default collection; hati di halaman destinasi)
+    Route::get('/wishlists', [WishlistController::class, 'index']);
     Route::post('/wishlists', [WishlistController::class, 'store']);
     Route::get('/wishlists/check/{destinationId}', [WishlistController::class, 'check']);
     Route::delete('/wishlists/{destinationId}', [WishlistController::class, 'destroy']);
 
+    // Wishlist Collections
+    Route::get('/wishlist-collections', [WishlistController::class, 'getCollections']);
+    Route::post('/wishlist-collections', [WishlistController::class, 'storeCollection']);
+    Route::get('/wishlist-collections/{collection}', [WishlistController::class, 'showCollection']);
+    Route::put('/wishlist-collections/{collection}', [WishlistController::class, 'updateCollection']);
+    Route::delete('/wishlist-collections/{collection}', [WishlistController::class, 'destroyCollection']);
+    Route::post('/wishlist-collections/{collection}/items', [WishlistController::class, 'addItem']);
+    Route::post('/wishlist-collections/{collection}/share', [WishlistController::class, 'shareCollection']);
+
+    // Wishlist items
+    Route::post('/wishlist-items/{item}/move', [WishlistController::class, 'moveItem']);
+    Route::post('/wishlist-items/{item}', [WishlistController::class, 'updateItem']);
+    Route::delete('/wishlist-items/{item}', [WishlistController::class, 'removeItem']);
+
     // Reviews
     Route::post('/reviews', [ReviewController::class, 'store']);
+    Route::get('/reviews/mine', [ReviewController::class, 'mine']);
+    Route::post('/reviews/{review}/vote', [ReviewController::class, 'vote']);
+    Route::post('/reviews/{review}/respond', [ReviewController::class, 'respond']);
 
-    // Trip Plans
+    // Trip Plans (itinerary builder v2)
     Route::get('/trip-plans', [TripPlanController::class, 'index']);
-    Route::get('/trip-plans/destinations', [TripPlanController::class, 'availableDestinations']);
     Route::post('/trip-plans', [TripPlanController::class, 'store']);
+    Route::get('/trip-plans/suggest', [TripPlanController::class, 'suggest']);
+    Route::get('/trip-plans/destinations', [TripPlanController::class, 'availableDestinations']);
+    Route::post('/trip-plans/{tripPlan}/share', [TripPlanController::class, 'share']);
     Route::get('/trip-plans/{tripPlan}', [TripPlanController::class, 'show']);
+    Route::put('/trip-plans/{tripPlan}', [TripPlanController::class, 'update']);
     Route::delete('/trip-plans/{tripPlan}', [TripPlanController::class, 'destroy']);
+
+    // Itinerary days
+    Route::post('/trip-plans/{tripPlan}/days', [TripPlanController::class, 'storeDay']);
+    Route::post('/itinerary-days/{day}/optimize', [TripPlanController::class, 'optimizeDay']);
+    Route::post('/itinerary-days/{day}/reorder', [TripPlanController::class, 'reorderItems']);
+    Route::post('/itinerary-days/{day}/items', [TripPlanController::class, 'storeItem']);
+    Route::delete('/itinerary-days/{day}', [TripPlanController::class, 'destroyDay']);
+
+    // Itinerary items
+    Route::post('/itinerary-items/{item}', [TripPlanController::class, 'updateItem']);
+    Route::delete('/itinerary-items/{item}', [TripPlanController::class, 'destroyItem']);
 
      Route::prefix('bookings')->group(function () {
         Route::get('/', [BookingController::class, 'index']);
@@ -197,6 +253,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Vouchers
     Route::post('/vouchers/validate', [VoucherController::class, 'validate']);
+    Route::post('/vouchers/{voucher}/claim', [VoucherController::class, 'claim']);
+    Route::get('/my-vouchers', [VoucherController::class, 'myVouchers']);
     Route::post('/orders/{order}/apply-voucher', [VoucherController::class, 'applyToOrder']);
     Route::post('/bookings/{booking}/apply-voucher', [VoucherController::class, 'applyToBooking']);
 
@@ -286,6 +344,9 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     // Reviews
     Route::get('reviews', [AdminReviewController::class, 'index']);
     Route::delete('reviews/{review}', [AdminReviewController::class, 'destroy']);
+
+    // Vouchers (dikelola admin, bisa ditukar dengan EJTCoin via loyalty jika ada conditions)
+    Route::apiResource('vouchers', AdminVoucherController::class);
 
     // Webhook Simulation (Admin only, testing/local environment)
     if (app()->environment(['local', 'testing'])) {

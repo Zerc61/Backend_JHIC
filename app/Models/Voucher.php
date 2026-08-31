@@ -26,6 +26,7 @@ class Voucher extends Model
         'applicable_to',
         'applicable_items',
         'conditions',
+        'is_free',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class Voucher extends Model
         'is_active' => 'boolean',
         'applicable_items' => 'array',
         'conditions' => 'array',
+        'is_free' => 'boolean',
     ];
 
     /**
@@ -45,6 +47,11 @@ class Voucher extends Model
     public function usages(): HasMany
     {
         return $this->hasMany(VoucherUsage::class);
+    }
+
+    public function claims(): HasMany
+    {
+        return $this->hasMany(VoucherClaim::class);
     }
 
     /**

@@ -22,6 +22,10 @@ class User extends Authenticatable
         'avatar',
         'role',
         'status',
+        'loyalty_tier',
+        'last_coin_activity_at',
+        'referral_code',
+        'referrer_user_id',
     ];
 
     protected $hidden = [
@@ -36,6 +40,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'status' => UserStatus::class,
+            'last_coin_activity_at' => 'datetime',
         ];
     }
 
@@ -74,6 +79,16 @@ class User extends Authenticatable
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function loyaltyRewards()
+    {
+        return $this->hasMany(LoyaltyReward::class);
+    }
+
+    public function voucherClaims()
+    {
+        return $this->hasMany(VoucherClaim::class);
     }
 
     public function tripPlans()

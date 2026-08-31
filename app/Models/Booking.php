@@ -26,6 +26,9 @@ class Booking extends Model
         'coin_amount',
         'coin_to_rupiah_rate',
         'rupiah_equivalent',
+        'voucher_id',
+        'discount',
+        'total_amount',
         'notes',
         'paid_at',
         'cancelled_at',
@@ -36,6 +39,8 @@ class Booking extends Model
         'coin_amount'        => 'decimal:4',
         'coin_to_rupiah_rate' => 'decimal:2',
         'rupiah_equivalent'  => 'decimal:2',
+        'discount'           => 'decimal:2',
+        'total_amount'       => 'decimal:2',
         'paid_at'            => 'datetime',
         'cancelled_at'       => 'datetime',
     ];
@@ -81,6 +86,11 @@ class Booking extends Model
     public function transportationBooking(): HasOne
     {
         return $this->hasOne(TransportationBooking::class);
+    }
+
+    public function voucher(): BelongsTo
+    {
+        return $this->belongsTo(Voucher::class);
     }
 
     // ── Accessor ────────────────────────────────────

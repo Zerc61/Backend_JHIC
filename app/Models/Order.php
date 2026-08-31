@@ -24,6 +24,9 @@ class Order extends Model
         'coin_amount',
         'coin_to_rupiah_rate',
         'rupiah_equivalent',
+        'voucher_id',
+        'discount',
+        'total_amount',
         'picked_up_at',
         'paid_at',
     ];
@@ -37,6 +40,8 @@ class Order extends Model
             'coin_amount' => 'decimal:4',
             'coin_to_rupiah_rate' => 'decimal:2',
             'rupiah_equivalent' => 'decimal:2',
+            'discount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
             'picked_up_at' => 'datetime',
             'paid_at' => 'datetime',
         ];
@@ -64,6 +69,11 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
     }
 
     public function coinTransaction()

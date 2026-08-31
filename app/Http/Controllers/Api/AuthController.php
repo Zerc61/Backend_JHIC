@@ -14,9 +14,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
+use App\Services\LoyaltyService;
 
 class AuthController extends Controller
 {
+    public function __construct(private LoyaltyService $loyalty)
+    {
+    }
+
     public function register(Request $request): JsonResponse
     {
         $request->validate([
@@ -24,7 +29,13 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'phone' => 'nullable|string|max:20',
+            'referral_code' => 'nullable|string|exists:users,referral_code',
         ]);
+
+        $referrer = null;
+        if ($request->filled('referral_code')) {
+            $referrer = User::where('referral_code', $request->referral_code)->first();
+        }
 
         $user = User::create([
             'name' => $request->name,
@@ -33,12 +44,19 @@ class AuthController extends Controller
             'phone' => $request->phone,
             'role' => UserRole::TOURIST,
             'status' => UserStatus::ACTIVE,
+            'referrer_user_id' => $referrer?->id,
         ]);
 
         Wallet::create([
             'user_id' => $user->id,
             'balance' => 0,
         ]);
+
+        $this->loyalty->ensureReferralCode($user);
+
+        if ($referrer) {
+            \App\Models\Notification::createReferralRegistered($referrer, $user);
+        }
 
         return response()->json([
             'message' => 'Registrasi berhasil',
@@ -64,6 +82,10 @@ class AuthController extends Controller
 
     // 2. Buat token baru menggunakan Sanctum
     $token = $user->createToken('auth_token')->plainTextToken;
+
+    // Loyalty: pastikan referral code + reward login harian
+    $this->loyalty->ensureReferralCode($user);
+    $this->loyalty->rewardDailyLogin($user);
 
     // Catatan: Hapus atau beri komentar pada baris session jika murni pakai token
     // $request->session()->regenerate();
@@ -126,6 +148,8 @@ class AuthController extends Controller
     }
 
     $user->save();
+
+    $this->loyalty->rewardCompleteProfile($user);
 
     return response()->json([
         'message' => 'Profil berhasil diperbarui',

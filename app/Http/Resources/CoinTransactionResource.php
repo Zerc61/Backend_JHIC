@@ -17,6 +17,8 @@ class CoinTransactionResource extends JsonResource
             'balance_before' => (float) $this->balance_before,
             'balance_after' => (float) $this->balance_after,
             'description' => $this->description,
+            'expires_at' => $this->expires_at?->toIso8601String(),
+            'is_expired' => (bool) $this->is_expired,
             'created_at' => $this->created_at->toIso8601String(),
         ];
     }

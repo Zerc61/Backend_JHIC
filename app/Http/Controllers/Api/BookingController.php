@@ -11,6 +11,7 @@ use App\Models\DestinationTicketBooking; // ✅ DESTINATION TICKET
 use App\Models\Hotel;
 use App\Models\HotelBooking;
 use App\Models\HotelRoom;
+use App\Models\Notification;
 use App\Models\PackageBooking;
 use App\Models\PackageBookingItem;
 use App\Models\TransportTicket;
@@ -19,8 +20,11 @@ use App\Models\TravelPackage;
 use App\Models\TravelPackageSchedule;
 use App\Models\Transportation;
 use App\Models\TransportationBooking;
+use App\Models\User;
 use App\Models\Wallet;
 use App\Services\TransportTicket\TransportTicketServiceInterface;
+use App\Services\LoyaltyService;
+use App\Services\VoucherService;
 use App\Enums\DestinationStatus; // ✅ DESTINATION TICKET
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +36,9 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 class BookingController extends Controller
 {
     public function __construct(
-        private TransportTicketServiceInterface $ticketService
+        private TransportTicketServiceInterface $ticketService,
+        private LoyaltyService $loyaltyService,
+        private VoucherService $voucherService
     ) {}
 
     // ================================================================
@@ -131,12 +137,30 @@ class BookingController extends Controller
         $request->validate(array_merge([
             'booking_type' => 'required|in:hotel,transportation,transport_ticket,travel_package,destination_ticket', // ✅ DESTINATION TICKET
             'notes'        => 'nullable|string',
+            'voucher_code' => 'nullable|string|max:64',
         ], $rules));
 
         $totalPrice = $this->calculatePrice($request);
 
         $rate = 2000;
-        $coinAmount = $totalPrice / $rate;
+        $discount = 0;
+        $finalAmount = $totalPrice;
+        $voucherId = null;
+
+        // Terapkan voucher yang sudah diklaim user (opsional)
+        if ($request->filled('voucher_code')) {
+            $applied = $this->voucherService->apply(
+                $request->user(),
+                $request->voucher_code,
+                (float) $totalPrice
+            );
+
+            $discount = $applied['discount'];
+            $finalAmount = $applied['final_amount'];
+            $voucherId = $applied['voucher_id'];
+        }
+
+        $coinAmount = $finalAmount / $rate;
         $wallet = auth()->user()->wallet;
 
         if (!$wallet || $wallet->balance < $coinAmount) {
@@ -145,9 +169,10 @@ class BookingController extends Controller
             ]);
         }
 
-        return DB::transaction(function () use ($request, $totalPrice, $coinAmount, $rate, $wallet) {
-            // Lock wallet untuk mencegah race condition
-            $wallet = $wallet->lockForUpdate()->first();
+        return DB::transaction(function () use ($request, $totalPrice, $finalAmount, $discount, $voucherId, $coinAmount, $rate, $wallet) {
+            // Lock wallet MILIK user (bukan `$wallet->lockForUpdate()->first()` yang
+            // tanpa where sehingga malah mengunci & mendebit wallet pertama di tabel).
+            $wallet = Wallet::whereKey($wallet->getKey())->lockForUpdate()->first();
             
             $balanceBefore = $wallet->balance;
 
@@ -156,9 +181,12 @@ class BookingController extends Controller
                 'booking_type'       => $request->booking_type,
                 'status'             => 'paid',
                 'total_price'        => $totalPrice,
+                'voucher_id'         => $voucherId,
+                'discount'           => $discount,
+                'total_amount'       => $finalAmount,
                 'coin_amount'        => $coinAmount,
                 'coin_to_rupiah_rate'=> $rate,
-                'rupiah_equivalent'  => $totalPrice,
+                'rupiah_equivalent'  => $finalAmount,
                 'notes'              => $request->notes,
                 'paid_at'            => now(),
             ]);
@@ -179,6 +207,15 @@ class BookingController extends Controller
             ]);
 
             $booking->load($this->detailRelations());
+
+            Notification::createBookingConfirmation($booking);
+            Notification::createNewBookingForManager($booking);
+
+            $this->loyaltyService->rewardBooking($booking->user, $booking);
+            $referrer = $booking->user->referrer_user_id ? User::find($booking->user->referrer_user_id) : null;
+            if ($referrer && Booking::where('user_id', $booking->user->id)->count() === 1) {
+                $this->loyaltyService->rewardReferral($referrer, $booking->user);
+            }
 
             return response()->json([
                 'message' => 'Booking berhasil dibuat',
