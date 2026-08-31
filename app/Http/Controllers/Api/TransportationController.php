@@ -15,6 +15,8 @@ class TransportationController extends Controller
         $transports = Transportation::query()
             ->published()
             ->with('destination')
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
             ->when($request->destination_id, fn ($q, $id) => $q->where('destination_id', $id))
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))
             ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))

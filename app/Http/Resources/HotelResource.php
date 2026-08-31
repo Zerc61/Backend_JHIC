@@ -23,7 +23,7 @@ class HotelResource extends JsonResource
                 : ($this->min_price ?? 0)),
 
             // Hanya muncul di detail
-            'description'     => $this->when($isDetail, $this->description),
+            'description'     => $this->description,
             'phone'           => $this->when($isDetail, $this->phone),
             'website'         => $this->when($isDetail, $this->website),
             'check_in_time'   => $this->when($isDetail, fn () => $this->check_in_time?->format('H:i')),
@@ -44,8 +44,14 @@ class HotelResource extends JsonResource
                 'caption' => $g->caption,
             ])),
 
-            'reviews_avg'  => $this->when($this->relationLoaded('reviews'), fn () => round($this->reviews->avg('rating') ?? 0, 1)),
-            'reviews_count' => $this->when($this->relationLoaded('reviews'), fn () => $this->reviews->count()),
+            'reviews_avg'  => $this->when(
+                $this->reviews_avg_rating !== null || $this->relationLoaded('reviews'),
+                fn () => round((float) ($this->reviews_avg_rating ?? $this->reviews->avg('rating')) ?? 0, 1)
+            ),
+            'reviews_count' => $this->when(
+                $this->reviews_count !== null || $this->relationLoaded('reviews'),
+                fn () => (int) ($this->reviews_count ?? $this->reviews->count())
+            ),
 
             'is_wishlisted' => $this->when(
                 auth()->check() && $this->relationLoaded('wishlists'),

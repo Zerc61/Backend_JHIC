@@ -22,7 +22,7 @@ class TransportationResource extends JsonResource
             'includes_driver' => $this->includes_driver,
             'includes_fuel'   => $this->includes_fuel,
 
-            'description' => $this->when($isDetail, $this->description),
+            'description' => $this->description,
             'phone'       => $this->when($isDetail, $this->phone),
 
             'destination' => $this->when($this->relationLoaded('destination'), [
@@ -37,8 +37,14 @@ class TransportationResource extends JsonResource
                 'caption' => $g->caption,
             ])),
 
-            'reviews_avg'   => $this->when($this->relationLoaded('reviews'), fn () => round($this->reviews->avg('rating') ?? 0, 1)),
-            'reviews_count'  => $this->when($this->relationLoaded('reviews'), fn () => $this->reviews->count()),
+            'reviews_avg'   => $this->when(
+                $this->reviews_avg_rating !== null || $this->relationLoaded('reviews'),
+                fn () => round((float) ($this->reviews_avg_rating ?? $this->reviews->avg('rating')) ?? 0, 1)
+            ),
+            'reviews_count'  => $this->when(
+                $this->reviews_count !== null || $this->relationLoaded('reviews'),
+                fn () => (int) ($this->reviews_count ?? $this->reviews->count())
+            ),
 
             'is_wishlisted' => $this->when(
                 auth()->check() && $this->relationLoaded('wishlists'),

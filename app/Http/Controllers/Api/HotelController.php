@@ -15,6 +15,8 @@ class HotelController extends Controller
         $hotels = Hotel::query()
             ->published()
             ->with('destination')
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
             ->when($request->destination_id, fn ($q, $id) => $q->where('destination_id', $id))
             ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
             ->when($request->star_rating, fn ($q, $r) => $q->where('star_rating', '>=', (int) $r))

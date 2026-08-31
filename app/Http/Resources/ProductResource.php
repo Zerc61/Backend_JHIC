@@ -19,6 +19,8 @@ class ProductResource extends JsonResource
             'unit' => $this->unit,
             'image' => $this->image,           // ← penting: bukan thumbnail
             'status' => $this->status->value ?? $this->status,
+            'is_available' => $this->isAvailable() && $this->stock > 0,
+            'price_formatted' => 'Rp ' . number_format((float) $this->price, 0, ',', '.'),
         ];
     }
 }
