@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\TripPlanController;
+use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\Dashboard\DashboardUmkmController;
 use App\Http\Controllers\Api\Dashboard\DashboardAdminController;
@@ -268,6 +269,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/hotel-rooms/{roomId}/availability', [AvailabilityController::class, 'hotelRoomAvailability']);
     Route::get('/transportations/{transportationId}/availability', [AvailabilityController::class, 'transportationAvailability']);
     Route::get('/packages/{packageId}/availability', [AvailabilityController::class, 'packageAvailability']);
+
+    // ===== EJT AI CORE (KAVI Chat / Smart Trip) =====
+    Route::prefix('ai')->group(function () {
+        Route::post('/chat', [AiChatController::class, 'chat']);
+        Route::post('/trip/plan', [AiChatController::class, 'tripPlan']);
+    });
 
 });
 
