@@ -1,58 +1,156 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# EJT Backend — Main API (Laravel 13)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend / REST API untuk **East Java Traveling (EJT)** — platform pariwisata & ekosistem
+travel Jawa Timur. Bertugas sebagai **gerbang utama (gateway)**: melayani seluruh akses dari
+frontend (Vue SPA), mengelola data, auth (Sanctum), pembayaran (Midtrans), wallet/loyalty,
+serta menjadi **proxy aman** ke microservice AI.
 
-## About Laravel
+Berjalan terpisah dari Frontend (Vue 3, port 5174) dan **EJT AI Core** (FastAPI, port 5001)
+agar pemrosesan AI tidak membebani API utama.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Tech Stack
+| Komponen | Pilihan |
+|---|---|
+| Framework | Laravel `^13.8` (terverifikasi v13.26) · PHP `^8.3` |
+| Auth | Laravel Sanctum (token Bearer + cookie CSRF / `statefulApi`) |
+| Payment | Midtrans PHP SDK (Snap / card) |
+| Akses | spatie/laravel-permission + middleware role (`admin` / `manager` / `umkm`) |
+| Gambar | intervention/image (galeri / thumbnail) |
+| QR | simplesoftwareio/simple-qrcode (tiket / invoice) |
+| DB | MySQL (default `jhic_db`) |
+| Queue | Database driver (`QUEUE_CONNECTION=database`) |
+| Test | PHPUnit (`^12.5`) + Laravel Pint |
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Komponen Produk
+- **Destinasi wisata** — kategori (Pantai, Pegunungan, Budaya, dll.), galeri, fasilitas, biaya, review.
+- **Hotel & Kamar** — listing, kamar, galeri, ketersediaan, booking.
+- **Paket Wisata** — jadwal, penjemputan, galeri, booking + itinerary hari-2.
+- **Transportasi** — rental kendaraan + booking; **Tiket Transport** (kereta/pesawat/bus, mock service).
+- **Event**, **UMKM Marketplace** (produk, pesanan, approval admin).
+- **Sistem Booking** terpadu (hotel / transportasi / tiket / paket / tiket destinasi) + QR + hold.
+- **Wallet & EJTCoin** — top-up via Midtrans, transaksi coin (debit/kredit/earn/redeem/expire).
+- **Loyalty** — tier (bronze/silver/gold/platinum), reward harian/login/review/referral, masa berlaku coin.
+- **Voucher, Quest & Streak** (gamifikasi, 7 hari), **Wishlist & Koleksi** (share via token).
+- **Trip Planner / Itinerary** — bagikan via token, dukungan **AI Smart Trip**.
+- **Review, Invoice, Notifikasi, Refund, Pencarian terpadu, Price Tracking** (wishlist).
+- **AI Chat (KAVI)** — `POST /ai/chat` (SSE) & `POST /ai/trip/plan` → proxy ke EJT AI Core.
+- **Dashboard per role** — Admin, Manager, dan UMKM.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+## Struktur
+```
+backend/
+├── app/
+│   ├── Console/Commands/       # TrackPrices, ExpireLoyaltyCoins, ExportDestinationsForAI
+│   ├── Enums/                  # UserRole, BookingStatus, OrderStatus, dsb.
+│   ├── Helpers/                # GeneralHelper (autoloaded)
+│   ├── Http/
+│   │   ├── Controllers/Api/    # API publik & user
+│   │   │   ├── Admin/          # 16 controller admin
+│   │   │   ├── Manager/        # 9 controller manager
+│   │   │   ├── Umkm/           # 5 controller UMKM
+│   │   │   └── Dashboard/      # DashboardAdmin / Umkm / User
+│   │   └── Middleware/         # Admin, Manager, Umkm middleware + guard role
+│   ├── Models/                 # 55 model Eloquent
+│   ├── Observers/  Policies/  Providers/
+│   ├── Services/               # AiService, Midtrans, Loyalty, Voucher, PriceTracking, dll.
+│   │   └── TransportTicket/    # TransportTicketServiceInterface + Mock
+│   └── Traits/
+├── bootstrap/
+├── config/                     # services.php (ai), midtrans.php, dsb.
+├── database/
+│   ├── migrations/             # ±60 migrasi
+│   └── seeders/                # DataSeeder berurutan + akun test
+├── routes/api.php              # seluruh route API (publik / sanctum / admin / manager / umkm)
+└── docs/admin-api-reference.md # referensi API admin (2093 baris)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Persona Role
+| Role | Kemampuan (arah frontend dashboard) |
+|---|---|
+| `tourist` | Explore, wishlist, wallet, loyalty, booking, trip planner, chat AI |
+| `umkm` | Dashboard & kelola produk, pesanan, profil |
+| `manager` | Kelola destinasi/hotel/paket/transport/event/booking miliknya |
+| `admin` | Kelola seluruh master data, user, order, voucher, kategori |
 
-## Contributing
+## Setup & Menjalankan
+```bash
+# 1. Install dependency & siapkan env (satu perintah)
+composer setup
+#    = composer install
+#    + salin .env.example -> .env + php artisan key:generate
+#    + php artisan migrate --force
+#    + npm install + npm run build
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# 2. Atur variabel kunci di .env (contoh nilai dev)
+DB_DATABASE=jhic_db
+DB_USERNAME=jhic_user
+DB_PASSWORD=jhic_123
 
-## Code of Conduct
+MIDTRANS_SERVER_KEY=...
+MIDTRANS_CLIENT_KEY=...
+MIDTRANS_IS_PRODUCTION=false
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+FRONTEND_URL=http://localhost:5174
 
-## Security Vulnerabilities
+# --- EJT AI Core (opsional, untuk chat/trip AI) ---
+AI_BASE_URL=http://127.0.0.1:5001
+AI_API_KEY=                  # = SHARED_SECRET di ai-service/.env
+AI_TIMEOUT=0
+AI_SYNC_ENABLED=false
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# 3. Jalankan dev server (server + queue + log + vite sekaligus)
+composer dev
+```
 
-## License
+Server API berjalan di **http://localhost:8000/api** (queue `database` → butuh `queue:listen`,
+sudah otomatis di `composer dev`).
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Seed & Akun Test
+```bash
+php artisan db:seed --force
+```
+Semua akun test memakai password **`password123`**:
+
+| Role | Email |
+|---|---|
+| Admin | `admin@ejt.com`, `superadmin@ejt.com` |
+| Manager | `manager@ejt.com`, `manager2@ejt.com`, `manager3@ejt.com` |
+| UMKM | `umkm@ejt.com` (+ `umkm2`–`umkm5@ejt.com`) |
+| Tourist | `tourist@ejt.com`, `andi@gmail.com` … (+ 12 total tourist) |
+
+Untuk mengisi data AI (RAG destinasi ke vector store):
+```bash
+php artisan destinations:export-ai          # -> storage/app/ai/destinations-ai.json
+cd ../ai-service && ./scripts/backfill_destinations.sh
+```
+
+## Scheduler
+Didaftarkan di `routes/console.php`:
+| Perintah | Jadwal | Fungsi |
+|---|---|---|
+| `prices:track` | setiap 6 jam | snapshot harga wishlist & notifikasi penurunan |
+| `loyalty:expire` | harian 03:00 | kadaluarsakan coin loyalty melewati masa berlaku |
+
+## Test
+```bash
+composer test        # php artisan config:clear && php artisan test
+# Fokus AI:
+php artisan test --filter=AiChatControllerTest
+
+# Ambil subset unit:
+php artisan test --testsuite=Unit
+```
+> Catatan: test suite butuh DB test terpisah (di `phpunit.xml`, default `jhic_test`).
+
+## Prinsip
+- **AI tidak pernah memotong saldo / charge.** Booking & trip plan dari AI selalu berupa **draft**.
+- **Keamanan:** endpoint mutasi (chat/trip) meneruskan shared secret `X-AI-Secret` ke FastAPI;
+  request masuk hanya yang sudah divalidasi token Sanctum oleh frontend.
+- Backend tidak memuat Vue SPA — frontend adalah **proyek terpisah** (`frontend/`, port 5174).
+
+## File Terkait
+- Route API: `routes/api.php`
+- Konfigurasi AI: `config/services.php` → `ai`
+- Konfigurasi payment: `config/midtrans.php`
+- Proxy AI: `app/Services/AiService.php`
+- Referensi API admin: `docs/admin-api-reference.md`
